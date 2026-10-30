@@ -1,0 +1,33 @@
+server:
+  # 8080 常被其他软件（如 Steam）占用，默认改用 8081；需要时用 SERVER_PORT 覆盖。
+  port: ${SERVER_PORT:8081}
+  shutdown: graceful
+
+spring:
+  application:
+    name: campus-lost-found-backend
+  jackson:
+    time-zone: Asia/Shanghai
+    default-property-inclusion: always
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+info:
+  app:
+    name: ${spring.application.name}
+    version: 0.1.0
+
+logging:
+  level:
+    root: INFO
+    edu.campus.lostfound: INFO
+

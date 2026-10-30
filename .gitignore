@@ -1,0 +1,43 @@
+# --- 依赖 ---
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# --- 构建产物 ---
+dist/
+target/
+build/
+*.jar
+
+# --- 环境与密钥（禁止提交） ---
+.env
+.env.local
+.env.*.local
+deploy/.env
+*.pem
+*.key
+
+# --- IDE / 系统 ---
+.idea/
+*.iml
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# --- 运行日志与本地数据 ---
+logs/
+*.log
+data/
+minio-data/
+.local/
+
+
+# --- 测试与覆盖率 ---
+coverage/
+.pytest_cache/
+htmlcov/
+

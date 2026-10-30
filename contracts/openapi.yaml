@@ -1,0 +1,75 @@
+openapi: 3.1.0
+info:
+  title: Campus Lost & Found API
+  version: 0.1.0
+  description: |
+    W1 骨架阶段只定义健康检查接口。
+    后续接口按执行手册先后端契约、后前端联调的顺序追加。
+servers:
+  - url: http://localhost:8081
+    description: 本地开发
+
+paths:
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      summary: 服务健康检查
+      tags: [system]
+      responses:
+        "200":
+          description: 服务正常
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseHealth"
+        "500":
+          description: 服务内部错误
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+
+components:
+  schemas:
+    HealthData:
+      type: object
+      required: [status, service, version]
+      properties:
+        status:
+          type: string
+          examples: [UP]
+        service:
+          type: string
+          examples: [campus-lost-found-backend]
+        version:
+          type: string
+          examples: [0.1.0]
+        timestamp:
+          type: string
+          format: date-time
+
+    ApiResponseHealth:
+      type: object
+      required: [code, message, data]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          $ref: "#/components/schemas/HealthData"
+
+    ApiResponseError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          examples: [50000]
+        message:
+          type: string
+        data:
+          nullable: true
+

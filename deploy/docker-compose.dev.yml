@@ -1,0 +1,75 @@
+# 本地开发依赖：MySQL + Redis + MinIO
+# 启动：docker compose -f deploy/docker-compose.dev.yml up -d
+# 停止：docker compose -f deploy/docker-compose.dev.yml down
+# 清空数据：docker compose -f deploy/docker-compose.dev.yml down -v
+name: campus-lost-found
+
+services:
+  mysql:
+    image: mysql:8.4.3
+    container_name: clf-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+08:00
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-clf_dev_root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-lostfound}
+      MYSQL_USER: ${MYSQL_USER:-lostfound}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-clf_dev_pass}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  redis:
+    image: redis:7.4.1-alpine
+    container_name: clf-redis
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-clf_dev_redis}
+      TZ: ${TZ:-Asia/Shanghai}
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-clf_dev_redis}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: clf-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-clfadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-clf_dev_minio}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+
+volumes:
+  mysql-data:
+  redis-data:
+  minio-data:
+
