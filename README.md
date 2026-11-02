@@ -1,6 +1,6 @@
 # 校园失物招领平台
 
-校园内的失物招领与寻物协作平台。当前进度：**W1 骨架阶段（执行手册第 0–3 节）**。
+校园内的失物招领与寻物协作平台。当前进度：**系统设计收尾、系统开发启动**。需求分析已完成，三端工程骨架已跑通，分类与公开帖子查询的第一条真实业务链路已经贯通前后端。
 
 三个可独立启动的服务：
 
@@ -10,7 +10,7 @@
 | `backend` | Spring Boot 3.5 / Java 21 | 8081 | 业务 API、鉴权、事务 |
 | `ai-service` | FastAPI / Python 3.13 | 8000 | 图像向量与识别（W1 仅有健康检查） |
 
-开发依赖：MySQL 8.4、Redis 7.4、MinIO。**W1 阶段后端不连接数据库，不开 Docker 也能启动。**
+开发依赖：MySQL 8.4、Redis 7.4、MinIO。默认单元测试不依赖外部服务；真实业务接口使用 `local` 配置连接这些依赖。
 
 ## 目录结构
 
@@ -20,7 +20,8 @@ campus-lost-found/
 │  ├─ decisions/         Day 0 决策与周会结论
 │  ├─ adr/               架构决策记录
 │  ├─ diagrams/          用例图、状态图、ER、时序图等
-│  ├─ requirements/      D1 / D2 需求基线
+│  ├─ requirements/      需求基线（当前已冻结）
+│  ├─ archive/           已结束阶段的历史材料
 │  ├─ prototype/         原型导出与页面说明
 │  ├─ meetings/          评审与周会记录
 │  └─ test/              测试计划、缺陷、验收记录
@@ -77,10 +78,18 @@ mvn -gs $s -s $s spring-boot:run
 验证：<http://localhost:8081/api/v1/health>
 
 ```json
-{"code":0,"message":"ok","data":{"status":"UP","service":"campus-lost-found-backend","version":"0.1.0"}}
+{"code":0,"message":"ok","data":{"status":"UP","service":"campus-lost-found-backend","version":"0.1.0"},"traceId":"..."}
 ```
 
-不启动 MySQL / Redis 也能正常运行，W1 尚未引入数据库依赖。
+默认配置只保证健康检查等基础接口可启动，不执行数据库迁移。运行真实业务接口时先启动 MySQL，并使用 `local` 配置：
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = "local"
+$s = "G:\软件工程\campus-lost-found\.local\maven-settings.xml"
+mvn -gs $s -s $s spring-boot:run
+```
+
+`local` 配置会自动执行 `db/migration` 与 `db/dev` 下的 Flyway 脚本。空库首次启动会建表并写入本地演示数据。
 
 ### 3. AI 服务
 
@@ -105,11 +114,11 @@ docker compose -f deploy\docker-compose.dev.yml ps
 
 | 组件 | 地址 | 开发默认账号 |
 | --- | --- | --- |
-| MySQL | `localhost:3306`，库 `lostfound` | `root` / `clf_dev_root`，应用账号 `lostfound` / `clf_dev_pass` |
+| MySQL | `localhost:3307`，库 `lostfound` | `root` / `clf_dev_root`，应用账号 `lostfound` / `clf_dev_pass` |
 | Redis | `localhost:6379` | 密码 `clf_dev_redis` |
 | MinIO | API `localhost:9000`，控制台 <http://localhost:9001> | `clfadmin` / `clf_dev_minio` |
 
-以上密码**仅用于本地开发**，任何部署环境必须替换，`.env` 不提交。
+本机已有 MySQL 服务占用 `3306`，因此项目容器映射到 `3307`。`deploy/.env` 已作本地覆盖，不提交；以上密码**仅用于本地开发**，任何部署环境必须替换。
 
 ## 用 IDE 打开
 
@@ -123,6 +132,9 @@ docker compose -f deploy\docker-compose.dev.yml ps
 | 接口 | 说明 |
 | --- | --- |
 | `GET /api/v1/health` | 后端健康检查（统一响应结构） |
+| `GET /api/v1/categories` | 启用的物品分类 |
+| `GET /api/v1/posts` | 公开帖子游标分页、类型/分类/关键词筛选 |
+| `GET /api/v1/posts/{publicId}` | 公开帖子详情 |
 | `GET /health` | AI 服务健康检查 |
 | `GET /actuator/health` | Spring Boot Actuator |
 
@@ -163,17 +175,20 @@ netstat -ano | findstr :8081
 
 这是预期行为：首页的服务状态卡会分别探测后端与 AI 服务，未启动即显示离线，不影响前端本身运行。
 
-## W1 验收清单
+## 已完成基线
 
 - [x] 目录结构与 Git 仓库就绪
 - [x] 前端可启动，首页为真实应用界面而非落地页
 - [x] 后端 `/api/v1/health` 返回统一结构
 - [x] AI `/health` 可访问
+- [x] MySQL 8.4 空库可由 Flyway 一键迁移并写入开发种子
+- [x] 分类、帖子列表、游标分页、关键词检索、详情接口通过集成测试
+- [x] 首页改为真实 API，覆盖加载、空结果、失败重试、加载更多与详情抽屉
 - [x] Compose 文件可解析（`docker compose config`）
 - [ ] 三位成员各自电脑按 README 跑通（需团队确认）
 - [ ] 首次提交与分支约定落地（需团队确认）
 
-详细验证数据与截图见 [W1 验收记录](docs/test/README.md)。
+详细验证数据与截图见 [测试与验收记录](docs/test/README.md)。当前阶段结论见 [开发阶段基线](docs/decisions/2026-11-02-development-baseline.md)。
 
 首次提交前先设置身份（仓库内或全局均可）：
 

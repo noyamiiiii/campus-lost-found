@@ -1,6 +1,7 @@
 package edu.campus.lostfound.system;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -23,10 +24,20 @@ class HealthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.message").value("ok"))
+                .andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(header().exists("X-Request-Id"))
                 .andExpect(jsonPath("$.data.status").value("UP"))
                 .andExpect(jsonPath("$.data.service").value("campus-lost-found-backend"))
                 .andExpect(jsonPath("$.data.version").value("0.1.0"))
                 .andExpect(jsonPath("$.data.timestamp").exists());
+    }
+
+    @Test
+    void echoesSafeCallerTraceId() throws Exception {
+        mockMvc.perform(get("/api/v1/health").header("X-Request-Id", "dev-request-0001"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("X-Request-Id", "dev-request-0001"))
+                .andExpect(jsonPath("$.traceId").value("dev-request-0001"));
     }
 }
 

@@ -50,3 +50,82 @@
 - 失败项必须写：现象、报错原文、处理动作、负责人。
 - 截图放 `docs/test/screenshots/`，文件名带日期。
 
+## 2026-11-02 数据库设计验证
+
+验证环境：Docker Compose，MySQL `8.4.3`，容器端口映射 `3307 -> 3306`，使用独立开发库 `lostfound`。
+
+| 项 | 命令/检查 | 期望 | 结果 |
+| --- | --- | --- | --- |
+| MySQL 版本 | `SELECT VERSION()` | 8.4.3 | 通过 |
+| 字符集与排序规则 | `@@character_set_server` / `@@collation_server` | `utf8mb4` / `utf8mb4_0900_ai_ci` | 通过 |
+| 建表脚本 | 执行 `V1__init_schema.sql` | 无错误 | 通过 |
+| 表数量 | `information_schema.tables` | 29 | 通过：29 |
+| 外键数量 | `information_schema.referential_constraints` | 与脚本一致 | 通过：37 |
+| 表引擎与排序规则 | 扫描全部表 | 全部 InnoDB / 统一排序规则 | 通过：0 张不一致 |
+| 全文索引 | `item_post` 索引 | `ft_post_text(title, description)` | 通过，使用 `ngram` |
+| 认领互斥 | `claim.active_flag` | STORED GENERATED | 通过；唯一键 `uk_claim_active(post_id, active_flag)` |
+| 信息流索引 | `item_post` 索引 | 无大 offset 查询所需组合索引 | 通过：`idx_post_feed` 等存在 |
+
+说明：本项验证的是 schema 可执行性与关键约束，尚未包含业务数据并发压测。并发认领唯一性将在认领模块的集成测试中验证。
+
+## 2026-11-02 第一条业务链路
+
+验证目标：从空库执行 Flyway，到后端公开查询接口、前端真实数据渲染和桌面/移动端浏览器检查全部贯通。
+
+### 后端与数据库
+
+```powershell
+cd G:\软件工程\campus-lost-found\backend
+$s = "G:\软件工程\campus-lost-found\.local\maven-settings.xml"
+mvn -gs $s -s $s -B test
+```
+
+| 项 | 结果 |
+| --- | --- |
+| 后端测试 | 通过：6 tests，0 failure，0 error，0 skipped |
+| Testcontainers | 通过：1.21.4，Docker Engine 29.9.2，临时 MySQL 8.4.3；Docker 不可用时测试明确失败而不是跳过 |
+| 迁移验证 | 空库执行 V1、V2 成功，29 张业务表 + 1 张 Flyway 历史表 |
+| 种子数据 | 20 个分类、9 条测试帖子（6 条可公开检索，3 条用于过滤边界） |
+| 分类接口 | `GET /api/v1/categories` 返回 20 项，首项为 `campus-card` |
+| 游标分页 | 第一页 `LF-2026-1031-01, LF-2026-1030-04`；第二页 `LF-2026-1030-02, LF-2026-1029-07` |
+| ngram 搜索 | 关键词“保温杯”命中 `LF-2026-1029-03` |
+| 详情接口 | `LF-2026-1031-01` 返回校园卡、图书馆、发布者与联系方式字段 |
+| 错误响应 | 不存在或私有帖子返回 HTTP 404 / `40400`，响应包含 `traceId` |
+| 筛选与边界 | `LOST` 返回 3 条、书籍分类返回 1 条；非法游标与类型返回 `40001` |
+| OpenAPI | Redocly 校验通过；4 条提示均为公开 API、本地服务器或无需 4xx 的预期提示 |
+
+### 前端
+
+```powershell
+cd G:\软件工程\campus-lost-found\frontend
+pnpm typecheck
+pnpm build
+```
+
+| 项 | 结果 |
+| --- | --- |
+| 类型检查 | 通过：`vue-tsc --noEmit` |
+| 生产构建 | 通过：3241 modules；仅有 Element Plus 主包大于 500 kB 的提示 |
+| 首页数据 | 6 条真实接口记录，默认类别显示“全部类别” |
+| 搜索与筛选 | “保温杯”返回 1 条；“寻物启事”返回 3 条 |
+| 详情抽屉 | 异步加载详情，桌面与移动端均正常展示 |
+| 响应式 | 1440px 与 390px 均无横向溢出；移动端抽屉宽度 358.8px |
+| 浏览器控制台 | 0 error、0 warning、0 页面异常、0 失败请求 |
+
+浏览器检查使用本机 Edge 无头模式，覆盖页面加载、卡片点击、详情请求、关键词搜索和导航筛选。
+
+### 截图
+
+- ![桌面首页](screenshots/2026-11-02-home-desktop.png)
+- ![移动端首页](screenshots/2026-11-02-home-mobile.png)
+- ![详情抽屉](screenshots/2026-11-02-detail-drawer.png)
+- ![移动端详情](screenshots/2026-11-02-detail-mobile.png)
+- ![关键词搜索](screenshots/2026-11-02-search-bottle.png)
+- ![寻物筛选](screenshots/2026-11-02-home-lost-filter.png)
+
+### 已知限制
+
+- 当前统计数字只表示已加载页面内的记录，不代表全站总量。
+- 发布、登录、认领与站内沟通仍是后续迭代范围，页面中未伪造这些能力。
+- 前端构建产物偏大，后续引入路由级代码分割后再做体积优化。
+

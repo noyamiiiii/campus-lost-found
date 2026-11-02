@@ -3,13 +3,108 @@ info:
   title: Campus Lost & Found API
   version: 0.1.0
   description: |
-    W1 骨架阶段只定义健康检查接口。
-    后续接口按执行手册先后端契约、后前端联调的顺序追加。
+    当前包含健康检查、物品分类、公开帖子列表与详情。
+    所有业务响应统一返回 code、message、data、traceId，并通过 X-Request-Id 传递请求追踪编号。
+    后续接口继续按“先契约、后实现、再联调”的顺序追加。
 servers:
   - url: http://localhost:8081
     description: 本地开发
+security: []
 
 paths:
+  /api/v1/categories:
+    get:
+      operationId: listCategories
+      summary: 获取启用的物品分类
+      tags: [catalog]
+      responses:
+        "200":
+          description: 分类列表
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseCategoryList"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/posts:
+    get:
+      operationId: listPosts
+      summary: 按条件查询公开帖子
+      description: 只返回审核通过、未删除且未到期的帖子，使用创建时间和 ID 组成的游标分页。
+      tags: [posts]
+      parameters:
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/PostType"
+        - name: categoryId
+          in: query
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+        - name: keyword
+          in: query
+          description: 使用 MySQL ngram 全文索引检索标题与描述
+          schema:
+            type: string
+            maxLength: 64
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: 帖子游标分页
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePostPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/posts/{publicId}:
+    get:
+      operationId: getPost
+      summary: 获取公开帖子详情
+      tags: [posts]
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 帖子详情
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePostDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/health:
     get:
       operationId: getHealth
@@ -18,19 +113,204 @@ paths:
       responses:
         "200":
           description: 服务正常
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseHealth"
         "500":
           description: 服务内部错误
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
 
 components:
+  headers:
+    RequestId:
+      description: 请求追踪编号；调用方可传 8–64 位安全字符，否则服务端生成
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: 请求参数不合法
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiResponseError"
+    NotFound:
+      description: 资源不存在或不可见
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiResponseError"
+    InternalError:
+      description: 服务内部错误
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiResponseError"
   schemas:
+    PostType:
+      type: string
+      enum: [LOST, FOUND]
+
+    PostStatus:
+      type: string
+      enum: [DRAFT, ACTIVE, CLAIMING, CLAIMED, HANDOVER_FAILED, RETURNED, EXPIRED, CLOSED]
+
+    AuditStatus:
+      type: string
+      enum: [NOT_SUBMITTED, PENDING, APPROVED, REJECTED, BLOCKED]
+
+    Category:
+      type: object
+      required: [id, name, slug, sort]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+        icon:
+          type: [string, "null"]
+        sort:
+          type: integer
+
+    CategoryListData:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+
+    PostSummary:
+      type: object
+      required:
+        [publicId, type, title, description, categoryId, categoryName, eventTime, status, auditStatus, matchCount, publisherName]
+      properties:
+        publicId:
+          type: string
+          examples: [LF-2026-1031-01]
+        type:
+          $ref: "#/components/schemas/PostType"
+        title:
+          type: string
+        description:
+          type: string
+        categoryId:
+          type: integer
+          format: int64
+        categoryName:
+          type: string
+        locationName:
+          type: [string, "null"]
+        eventTime:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/PostStatus"
+        auditStatus:
+          $ref: "#/components/schemas/AuditStatus"
+        matchCount:
+          type: integer
+        publisherName:
+          type: string
+
+    PostPageData:
+      type: object
+      required: [list, hasMore]
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostSummary"
+        nextCursor:
+          type: [string, "null"]
+        hasMore:
+          type: boolean
+
+    PostDetail:
+      allOf:
+        - $ref: "#/components/schemas/PostSummary"
+        - type: object
+          properties:
+            brand:
+              type: [string, "null"]
+            color:
+              type: [string, "null"]
+            locationDetail:
+              type: [string, "null"]
+            contactMode:
+              type: string
+              enum: [PUBLIC, AFTER_CLAIM, IN_APP_ONLY]
+            expireAt:
+              type: [string, "null"]
+              format: date-time
+
+    ApiResponseCategoryList:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          $ref: "#/components/schemas/CategoryListData"
+        traceId:
+          type: string
+
+    ApiResponsePostPage:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          $ref: "#/components/schemas/PostPageData"
+        traceId:
+          type: string
+
+    ApiResponsePostDetail:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          $ref: "#/components/schemas/PostDetail"
+        traceId:
+          type: string
+
     HealthData:
       type: object
       required: [status, service, version]
@@ -50,7 +330,7 @@ components:
 
     ApiResponseHealth:
       type: object
-      required: [code, message, data]
+      required: [code, message, data, traceId]
       properties:
         code:
           type: integer
@@ -60,10 +340,13 @@ components:
           examples: [ok]
         data:
           $ref: "#/components/schemas/HealthData"
+        traceId:
+          type: string
+          examples: [8f4c2a51cbb84b4f9e2f6b7e09cb4d8a]
 
     ApiResponseError:
       type: object
-      required: [code, message]
+      required: [code, message, data, traceId]
       properties:
         code:
           type: integer
@@ -71,5 +354,8 @@ components:
         message:
           type: string
         data:
-          nullable: true
+          description: 错误响应没有数据体
+        traceId:
+          type: string
+          examples: [8f4c2a51cbb84b4f9e2f6b7e09cb4d8a]
 

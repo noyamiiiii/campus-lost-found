@@ -279,10 +279,10 @@ a {
   font-size: 15px;
 }
 
-.demo-note {
+.feed-note {
   font-size: 12px;
-  color: var(--warn);
-  background: var(--warn-soft);
+  color: var(--ink-muted);
+  background: var(--line-soft);
   padding: 2px 8px;
   border-radius: 4px;
   white-space: nowrap;
@@ -372,6 +372,67 @@ a {
   font-size: 13.5px;
 }
 
+.feed-state {
+  min-height: 260px;
+  padding: 44px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+  color: var(--bad);
+}
+
+.feed-state p {
+  max-width: 44ch;
+  color: var(--ink-soft);
+}
+
+.feed-skeleton {
+  padding: 18px 16px 26px;
+}
+
+.feed__footer {
+  padding: 14px 16px 18px;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.feed__footer-error {
+  font-size: 12.5px;
+  color: var(--bad);
+}
+
+.load-more {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.load-more:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.load-more:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
 .kind-tag {
   flex: 0 0 auto;
   font-size: 12px;
@@ -397,7 +458,7 @@ a {
   white-space: nowrap;
 }
 
-.item-status--open {
+.item-status--active {
   color: var(--accent);
 }
 
@@ -407,6 +468,10 @@ a {
 
 .item-status--closed {
   color: var(--ink-muted);
+}
+
+.item-status--bad {
+  color: var(--bad);
 }
 
 /* ---------- 右侧栏 ---------- */
@@ -655,6 +720,19 @@ a {
 
 .detail__action {
   align-self: flex-start;
+}
+
+.detail-state {
+  padding: 18px 14px;
+  border: 1px solid #f0cfcb;
+  border-radius: 6px;
+  background: #fff7f6;
+  color: var(--bad);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
 }
 
 /* ---------- 发布弹窗 ---------- */

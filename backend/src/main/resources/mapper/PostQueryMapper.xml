@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.campus.lostfound.post.PostQueryMapper">
+
+    <sql id="publicPostColumns">
+        p.id,
+        p.public_id,
+        p.type,
+        p.title,
+        p.description,
+        p.category_id,
+        c.name AS category_name,
+        l.name AS location_name,
+        p.detail AS location_detail,
+        p.brand,
+        p.color,
+        p.status,
+        p.audit_status,
+        p.contact_mode,
+        p.match_count,
+        u.public_id AS publisher_public_id,
+        p.event_time,
+        p.expire_at,
+        p.created_at
+    </sql>
+
+    <sql id="publicPostJoins">
+        FROM item_post p
+        INNER JOIN category c ON c.id = p.category_id
+        INNER JOIN sys_user u ON u.id = p.user_id
+        LEFT JOIN campus_location l ON l.id = p.location_id
+    </sql>
+
+    <sql id="publicPostPredicate">
+        p.deleted_at IS NULL
+        AND p.audit_status = 'APPROVED'
+        AND p.visibility = 'PUBLIC'
+        AND p.status IN ('ACTIVE', 'CLAIMING', 'CLAIMED')
+        AND (p.expire_at IS NULL OR p.expire_at > CURRENT_TIMESTAMP(3))
+    </sql>
+
+    <select id="findPage" resultType="edu.campus.lostfound.post.PostRow">
+        SELECT
+        <include refid="publicPostColumns"/>
+        <include refid="publicPostJoins"/>
+        WHERE <include refid="publicPostPredicate"/>
+        <if test="type != null and type != ''">
+            AND p.type = #{type}
+        </if>
+        <if test="categoryId != null">
+            AND p.category_id = #{categoryId}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND MATCH(p.title, p.description) AGAINST (#{keyword} IN NATURAL LANGUAGE MODE)
+        </if>
+        <if test="cursorTime != null and cursorId != null">
+            AND (p.created_at &lt; #{cursorTime}
+                 OR (p.created_at = #{cursorTime} AND p.id &lt; #{cursorId}))
+        </if>
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findByPublicId" resultType="edu.campus.lostfound.post.PostRow">
+        SELECT
+        <include refid="publicPostColumns"/>
+        <include refid="publicPostJoins"/>
+        WHERE <include refid="publicPostPredicate"/>
+          AND p.public_id = #{publicId}
+        LIMIT 1
+    </select>
+</mapper>
