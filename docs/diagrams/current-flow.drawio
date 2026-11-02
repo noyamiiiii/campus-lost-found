@@ -1,0 +1,123 @@
+<mxfile host="app.diagrams.net" agent="Codex" version="24.7.17" type="device">
+  <diagram id="current-flow" name="现状流程">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="860" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="l1" value="失主（学生）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e8eef4;strokeColor=#c3ccd6;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="320" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" value="拾得者（学生）" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e8eef4;strokeColor=#c3ccd6;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="400" y="40" width="320" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" value="服务点 / 保卫处" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e8eef4;strokeColor=#c3ccd6;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="760" y="40" width="340" height="36" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a1" value="发现物品丢失" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2f0;strokeColor=#0f766e;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="60" y="95" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" value="在班级群 / 校园墙发一条文字消息" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="60" y="180" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" value="消息被新消息覆盖，很快沉底" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdecea;strokeColor=#b3261e;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="60" y="265" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" value="私聊群管理员，逐个问同学" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="60" y="350" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="a5" value="有人回应，口头核对物品特征" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="60" y="435" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="a6" value="约定时间地点，线下交接" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="60" y="520" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="a7" value="没有记录留存，事后无法追溯" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdecea;strokeColor=#b3261e;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="60" y="605" width="280" height="52" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b1" value="捡到物品" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6f2f0;strokeColor=#0f766e;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="420" y="95" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="b2" value="拍照发到群里，或托室友转告" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="420" y="180" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="b3" value="无人认领，信息也对不上" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdecea;strokeColor=#b3261e;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="420" y="265" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="b4" value="自行保管，或放回原处" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="420" y="350" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="b5" value="交给宿管 / 保卫处" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="420" y="435" width="280" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="b6" value="手写登记，格式因人而异" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="420" y="520" width="280" height="52" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c1" value="接收物品，记在纸质本上" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="780" y="435" width="300" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="c2" value="学生上门询问才能查到" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#8a97a5;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="780" y="520" width="300" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="c3" value="长期无人认领，物品堆积" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fdecea;strokeColor=#b3261e;fontSize=12;fontColor=#16202b;" vertex="1" parent="1">
+          <mxGeometry x="780" y="605" width="300" height="52" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="a1" target="a2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="a2" target="a3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="a3" target="a4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="a4" target="a5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="a5" target="a6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="a6" target="a7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="b1" target="b2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="b2" target="b3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="b3" target="b4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="b3" target="b5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="b5" target="b6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="b6" target="c1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="c1" target="c2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#5b6b7b;" edge="1" parent="1" source="c2" target="c3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" value="上门询问" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#b45309;dashed=1;fontSize=11;fontColor=#b45309;" edge="1" parent="1" source="a4" target="c2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="note" value="现状结论（待调研验证）：信息分散在多个群；没有统一登记；状态无法追踪；归还后无任何留痕。" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff8e6;strokeColor=#d7b56d;fontSize=12;align=left;spacingLeft=12;fontColor=#5b4a1b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="715" width="1060" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+
