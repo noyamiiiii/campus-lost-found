@@ -104,6 +104,18 @@ class AuthApiIntegrationTest {
     }
 
     @Test
+    void rejectsCodeThatWasNeverRequested() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"studentNo":"20260002","phone":"13900000005","code":"123456"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100))
+                .andExpect(jsonPath("$.message").value("请先获取验证码"));
+    }
+
+    @Test
     void registersNewStudentAndCompletesProfile() throws Exception {
         mockMvc.perform(post("/api/v1/auth/sms-code")
                         .contentType(MediaType.APPLICATION_JSON)

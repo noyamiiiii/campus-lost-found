@@ -20,6 +20,7 @@ const phone = ref(DEMO_PHONE)
 const code = ref('')
 const sending = ref(false)
 const codeSent = ref(false)
+const codeTarget = ref('')
 const countdown = ref(0)
 const error = ref('')
 let countdownTimer: ReturnType<typeof setInterval> | null = null
@@ -46,6 +47,7 @@ const codeButtonLabel = computed(() => {
 })
 
 const dialogTitle = computed(() => (mode.value === 'login' ? '登录校园失物招领' : '注册校园账号'))
+const accountKey = computed(() => `${studentNo.value.trim()}|${phone.value.trim()}`)
 const submitLabel = computed(() => {
   if (auth.busy) {
     return mode.value === 'login' ? '正在验证' : '正在注册'
@@ -61,7 +63,6 @@ function switchMode(next: AuthMode): void {
   auth.setLoginMode(next)
   clearDemoAccountForRegister(next)
   error.value = ''
-  code.value = ''
 }
 
 function clearDemoAccountForRegister(next: AuthMode): void {
@@ -83,6 +84,14 @@ function startCountdown(seconds: number): void {
       countdownTimer = null
     }
   }, 1000)
+}
+
+function resetCountdown(): void {
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+    countdownTimer = null
+  }
+  countdown.value = 0
 }
 
 function validateAccount(): boolean {
@@ -109,6 +118,7 @@ async function requestCode(): Promise<void> {
       phone: phone.value.trim(),
     })
     codeSent.value = true
+    codeTarget.value = accountKey.value
     startCountdown(result.retryAfterSeconds)
     if (result.debugCode) {
       code.value = result.debugCode
@@ -123,6 +133,10 @@ async function requestCode(): Promise<void> {
 async function submit(): Promise<void> {
   error.value = ''
   if (!validateAccount()) {
+    return
+  }
+  if (!codeSent.value || codeTarget.value !== accountKey.value) {
+    error.value = '请先获取验证码'
     return
   }
   if (!/^[0-9]{6}$/.test(code.value.trim())) {
@@ -158,6 +172,15 @@ watch(
     }
   },
 )
+
+watch([studentNo, phone], () => {
+  if (codeSent.value || code.value || countdown.value > 0) {
+    codeSent.value = false
+    codeTarget.value = ''
+    code.value = ''
+    resetCountdown()
+  }
+})
 
 watch(
   () => auth.loginMode,
@@ -228,7 +251,7 @@ onBeforeUnmount(() => {
 
       <div v-else class="register-hint">
         <ShieldCheck :size="15" />
-        <span>本地演示阶段验证码固定为 <strong>123456</strong>，真实短信接入后会改为手机接收。</span>
+        <span>本地演示阶段验证码固定为 <strong>123456</strong>，请先点击“获取验证码”，验证码会自动填入。</span>
       </div>
 
       <form class="login-form" @submit.prevent="submit">

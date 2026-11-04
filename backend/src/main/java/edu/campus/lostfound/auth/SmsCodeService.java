@@ -39,9 +39,12 @@ public class SmsCodeService {
         String key = key(studentNo, phone);
         CodeEntry entry = codes.get(key);
         Instant now = Instant.now();
-        if (entry == null || !now.isBefore(entry.expiresAt())) {
+        if (entry == null) {
+            throw ApiException.unauthorized("请先获取验证码");
+        }
+        if (!now.isBefore(entry.expiresAt())) {
             codes.remove(key);
-            throw ApiException.unauthorized("验证码无效或已过期，请重新获取");
+            throw ApiException.unauthorized("验证码已过期，请重新获取");
         }
         int attempts = entry.failedAttempts().incrementAndGet();
         boolean matches = MessageDigest.isEqual(
