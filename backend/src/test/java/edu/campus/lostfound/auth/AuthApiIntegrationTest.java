@@ -104,7 +104,7 @@ class AuthApiIntegrationTest {
     }
 
     @Test
-    void registersFirstLoginAndCompletesProfile() throws Exception {
+    void registersNewStudentAndCompletesProfile() throws Exception {
         mockMvc.perform(post("/api/v1/auth/sms-code")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
@@ -112,16 +112,17 @@ class AuthApiIntegrationTest {
                                 """))
                 .andExpect(status().isOk());
 
-        MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
+        MvcResult register = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"studentNo":"20269999","phone":"13900000009","code":"123456"}
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("HttpOnly")))
                 .andExpect(jsonPath("$.data.needsProfileCompletion").value(true))
                 .andReturn();
 
-        String accessToken = JsonPath.read(login.getResponse().getContentAsString(), "$.data.accessToken");
+        String accessToken = JsonPath.read(register.getResponse().getContentAsString(), "$.data.accessToken");
         mockMvc.perform(put("/api/v1/users/me")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -134,6 +135,46 @@ class AuthApiIntegrationTest {
     }
 
     @Test
+    void rejectsDuplicateStudentNumberAndPhone() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"studentNo":"20260001","phone":"13900000007","code":"123456"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(40900))
+                .andExpect(jsonPath("$.message").value("该学号已注册，请直接登录"));
+
+        mockMvc.perform(post("/api/v1/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"studentNo":"20265555","phone":"13800000002","code":"123456"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(40900))
+                .andExpect(jsonPath("$.message").value("该手机号已注册，请直接登录"));
+    }
+
+    @Test
+    void rejectsLoginForUnregisteredAccount() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/sms-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"studentNo":"20267777","phone":"13900000006"}
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"studentNo":"20267777","phone":"13900000006","code":"123456"}
+                                """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100))
+                .andExpect(jsonPath("$.message").value("账号不存在，请先注册"));
+    }
+
+    @Test
     void rotatesRefreshTokenAndRejectsReplay() throws Exception {
         mockMvc.perform(post("/api/v1/auth/sms-code")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -142,7 +183,7 @@ class AuthApiIntegrationTest {
                                 """))
                 .andExpect(status().isOk());
 
-        MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
+        MvcResult register = mockMvc.perform(post("/api/v1/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"studentNo":"20268888","phone":"13900000008","code":"123456"}
@@ -150,7 +191,7 @@ class AuthApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        Cookie oldRefresh = login.getResponse().getCookie("clf_refresh");
+        Cookie oldRefresh = register.getResponse().getCookie("clf_refresh");
         MvcResult refresh = mockMvc.perform(post("/api/v1/auth/refresh").cookie(oldRefresh))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("clf_refresh=")))

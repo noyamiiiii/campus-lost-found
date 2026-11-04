@@ -35,6 +35,12 @@ export interface LoginInput extends SendCodeInput {
   code: string
 }
 
+export interface RegisterInput extends SendCodeInput {
+  code: string
+}
+
+export type AuthMode = 'login' | 'register'
+
 export interface UserProfileUpdate {
   realName: string
   dept: string

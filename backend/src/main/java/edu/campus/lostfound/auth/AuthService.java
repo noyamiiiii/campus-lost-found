@@ -58,19 +58,31 @@ public class AuthService {
 
         SysUserEntity user = userService.findByStudentNo(normalizedStudentNo);
         if (user == null) {
-            SysUserEntity phoneOwner = userService.findByPhone(normalizedPhone);
-            if (phoneOwner != null) {
-                throw ApiException.unauthorized("学号与手机号不匹配");
-            }
-            user = userService.createStudent(normalizedStudentNo, normalizedPhone);
-        } else if (!normalizedPhone.equals(user.getPhone())) {
+            throw ApiException.unauthorized("账号不存在，请先注册");
+        }
+        if (!normalizedPhone.equals(user.getPhone())) {
             throw ApiException.unauthorized("学号与手机号不匹配");
         }
 
-        if (!"ACTIVE".equals(user.getStatus())) {
-            throw ApiException.forbidden("账号当前不可登录");
-        }
+        ensureActive(user);
         userService.updateLastLogin(user.getId());
+        return issueSession(user);
+    }
+
+    @Transactional
+    public IssuedSession register(String studentNo, String phone, String code) {
+        String normalizedStudentNo = studentNo.trim();
+        String normalizedPhone = phone.trim();
+
+        if (userService.findByStudentNo(normalizedStudentNo) != null) {
+            throw ApiException.conflict("该学号已注册，请直接登录");
+        }
+        if (userService.findByPhone(normalizedPhone) != null) {
+            throw ApiException.conflict("该手机号已注册，请直接登录");
+        }
+
+        smsCodeService.verify(normalizedStudentNo, normalizedPhone, code);
+        SysUserEntity user = userService.createStudent(normalizedStudentNo, normalizedPhone);
         return issueSession(user);
     }
 
@@ -90,13 +102,17 @@ public class AuthService {
         }
 
         SysUserEntity user = userService.requireById(stored.getUserId());
-        if (!"ACTIVE".equals(user.getStatus())) {
-            throw ApiException.forbidden("账号当前不可登录");
-        }
+        ensureActive(user);
         refreshTokenMapper.update(null, Wrappers.<RefreshTokenEntity>lambdaUpdate()
                 .eq(RefreshTokenEntity::getId, stored.getId())
                 .set(RefreshTokenEntity::getRevokedAt, LocalDateTime.now()));
         return issueSession(user);
+    }
+
+    private void ensureActive(SysUserEntity user) {
+        if (!"ACTIVE".equals(user.getStatus())) {
+            throw ApiException.forbidden("账号当前不可登录");
+        }
     }
 
     @Transactional

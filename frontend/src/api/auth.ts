@@ -2,6 +2,7 @@ import { http } from './http'
 import type {
   AuthSession,
   LoginInput,
+  RegisterInput,
   SendCodeData,
   SendCodeInput,
   UserProfile,
@@ -29,6 +30,11 @@ export async function sendLoginCode(input: SendCodeInput): Promise<SendCodeData>
 
 export async function login(input: LoginInput): Promise<AuthSession> {
   const { data } = await http.post<ApiEnvelope<AuthSession>>('/api/v1/auth/login', input)
+  return unwrap(data)
+}
+
+export async function register(input: RegisterInput): Promise<AuthSession> {
+  const { data } = await http.post<ApiEnvelope<AuthSession>>('/api/v1/auth/register', input)
   return unwrap(data)
 }
 

@@ -66,10 +66,6 @@ public class UserService {
             profileMapper.insert(profile);
             return user;
         } catch (DuplicateKeyException ex) {
-            SysUserEntity existing = findByStudentNo(studentNo);
-            if (existing != null) {
-                return existing;
-            }
             throw ApiException.conflict("该手机号或学号已被使用");
         }
     }

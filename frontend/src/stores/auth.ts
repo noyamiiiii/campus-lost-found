@@ -4,17 +4,26 @@ import {
   fetchCurrentUser,
   login as loginRequest,
   logoutSession,
+  register as registerRequest,
   refreshSession,
   updateCurrentUser,
 } from '@/api/auth'
 import { setAccessToken } from '@/api/http'
-import type { AuthSession, LoginInput, UserProfile, UserProfileUpdate } from '@/types/auth'
+import type {
+  AuthMode,
+  AuthSession,
+  LoginInput,
+  RegisterInput,
+  UserProfile,
+  UserProfileUpdate,
+} from '@/types/auth'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserProfile | null>(null)
   const initialized = ref(false)
   const busy = ref(false)
   const loginOpen = ref(false)
+  const loginMode = ref<AuthMode>('login')
   let bootstrapTask: Promise<void> | null = null
 
   const displayName = computed(() => {
@@ -34,8 +43,13 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
   }
 
-  function openLogin(): void {
+  function openLogin(mode: AuthMode = 'login'): void {
+    loginMode.value = mode
     loginOpen.value = true
+  }
+
+  function setLoginMode(mode: AuthMode): void {
+    loginMode.value = mode
   }
 
   function closeLogin(): void {
@@ -74,6 +88,18 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function register(input: RegisterInput): Promise<AuthSession> {
+    busy.value = true
+    try {
+      const session = await registerRequest(input)
+      applySession(session)
+      initialized.value = true
+      return session
+    } finally {
+      busy.value = false
+    }
+  }
+
   async function refreshUser(): Promise<void> {
     user.value = await fetchCurrentUser()
   }
@@ -104,11 +130,14 @@ export const useAuthStore = defineStore('auth', () => {
     initialized,
     busy,
     loginOpen,
+    loginMode,
     displayName,
     bootstrap,
     openLogin,
+    setLoginMode,
     closeLogin,
     login,
+    register,
     refreshUser,
     saveProfile,
     logout,

@@ -73,7 +73,7 @@ async function handleAccountCommand(command: string): Promise<void> {
           </template>
         </el-dropdown>
 
-        <button v-else type="button" class="btn btn--secondary" @click="auth.openLogin">
+        <button v-else type="button" class="btn btn--secondary" @click="auth.openLogin()">
           <LogIn :size="16" />
           登录
         </button>

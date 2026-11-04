@@ -2,6 +2,7 @@ package edu.campus.lostfound.auth;
 
 import edu.campus.lostfound.auth.AuthDtos.AuthSession;
 import edu.campus.lostfound.auth.AuthDtos.LoginRequest;
+import edu.campus.lostfound.auth.AuthDtos.RegisterRequest;
 import edu.campus.lostfound.auth.AuthDtos.SendCodeData;
 import edu.campus.lostfound.auth.AuthDtos.SendCodeRequest;
 import edu.campus.lostfound.common.ApiResponse;
@@ -39,6 +40,12 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthSession>> login(@Valid @RequestBody LoginRequest request) {
         var issued = authService.login(request.studentNo(), request.phone(), request.code());
+        return sessionResponse(issued.session(), issued.refreshToken());
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<AuthSession>> register(@Valid @RequestBody RegisterRequest request) {
+        var issued = authService.register(request.studentNo(), request.phone(), request.code());
         return sessionResponse(issued.session(), issued.refreshToken());
     }
 

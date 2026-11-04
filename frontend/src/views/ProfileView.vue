@@ -69,8 +69,11 @@ onMounted(async () => {
     <section v-else-if="!auth.user" class="profile-guest">
       <LogIn :size="30" />
       <h2>登录后查看个人资料</h2>
-      <p>登录状态已失效，或你还没有登录。</p>
-      <el-button type="primary" @click="auth.openLogin">立即登录</el-button>
+      <p>登录状态已失效，或你还没有账号。</p>
+      <div class="profile-guest__actions">
+        <el-button type="primary" @click="auth.openLogin()">立即登录</el-button>
+        <el-button @click="auth.openLogin('register')">注册账号</el-button>
+      </div>
     </section>
 
     <div v-else class="profile-layout">
