@@ -277,3 +277,42 @@ npm run build
 - 验证码记录按「学号 + 手机号」匹配，暂不支持跨账号复用。
 - 本地固定验证码仍只用于演示，公开部署前需替换为真实短信服务。
 
+## 2026-11-04 本地跨域白名单修复
+
+现象：点“获取验证码”后弹窗提示“请求失败（HTTP 403）”。
+
+### 问题原因
+
+`WebConfig` 里的跨域白名单只写了 `http://localhost:5173` 和 `http://127.0.0.1:5173`。Vite 在 5173 被占用时会自动换到 5174 等端口，此时浏览器带上的 `Origin` 不在白名单内，Spring 直接返回 403 `Invalid CORS request`，响应体不是 JSON，前端只能显示成“请求失败（HTTP 403）”。
+
+复现方式：
+
+```powershell
+Invoke-WebRequest -Uri 'http://localhost:8091/api/v1/auth/sms-code' -Method POST `
+  -ContentType 'application/json' -Headers @{ Origin = 'http://localhost:5174' } `
+  -Body '{"studentNo":"23450987","phone":"18767589876"}'
+```
+
+修复前返回 403 `Invalid CORS request`，修复后返回 200。
+
+### 修改内容
+
+| 位置 | 修改 |
+| --- | --- |
+| `WebConfig` | 白名单改为 `allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*")`，本地任意端口可用 |
+| `api/posts.ts` | 403 单独提示“请求被拒绝（HTTP 403），请确认访问地址与后端跨域配置” |
+
+### 验证结果
+
+| 项 | 结果 |
+| --- | --- |
+| 后端完整测试 | 通过：13 tests，0 failure，0 error |
+| 前端类型检查 | 通过：`vue-tsc --noEmit` |
+| 跨域 | 通过：`Origin` 为 5174、5175 时均不再返回 403 |
+| 浏览器流程 | 通过：获取验证码 → 注册并登录全程正常 |
+
+### 注意
+
+- 白名单只覆盖 `localhost` 与 `127.0.0.1`，用局域网 IP 访问仍会被拒绝。
+- 改动需要重启后端才生效；IDEA 里运行的那个实例要重新启动一次。
+

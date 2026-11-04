@@ -71,6 +71,9 @@ export function toRequestMessage(error: unknown): string {
     if (!error.response) {
       return '无法连接后端服务，请确认服务已经启动'
     }
+    if (error.response.status === 403) {
+      return '请求被拒绝（HTTP 403），请确认访问地址与后端跨域配置'
+    }
     return `请求失败（HTTP ${error.response.status}）`
   }
   return error instanceof Error ? error.message : '请求失败，请稍后重试'

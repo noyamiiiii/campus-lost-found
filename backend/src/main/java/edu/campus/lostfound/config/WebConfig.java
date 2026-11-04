@@ -6,6 +6,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * 开发期前端默认走 Vite 代理，这里额外放开本地端口，便于直接用浏览器或 Apifox 调试。
+ * 端口不写死，Vite 在 5173 被占用时会自动改用 5174 等端口。
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
@@ -13,7 +14,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+                .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*")
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)
