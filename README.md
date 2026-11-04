@@ -1,6 +1,6 @@
 # 校园失物招领平台
 
-校园内的失物招领与寻物协作平台。当前进度：**系统设计收尾、系统开发启动**。需求分析已完成，三端工程骨架已跑通，分类与公开帖子查询的第一条真实业务链路已经贯通前后端。
+校园内的失物招领与寻物协作平台。当前进度：**系统设计收尾、系统开发启动**。需求分析已完成，三端工程骨架已跑通，分类与公开帖子查询链路、验证码登录与个人资料链路已经贯通前后端。
 
 三个可独立启动的服务：
 
@@ -59,11 +59,12 @@ campus-lost-found/
 
 ```powershell
 cd G:\软件工程\campus-lost-found\frontend
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 浏览器打开 <http://localhost:5173>。端口被占用时 Vite 会自动换端口，以终端输出为准。
+如果本机使用 `pnpm`，等价的命令是 `pnpm install` 与 `pnpm dev`。
 
 ### 2. 后端
 
@@ -78,7 +79,7 @@ mvn -gs $s -s $s spring-boot:run
 验证：<http://localhost:8081/api/v1/health>
 
 ```json
-{"code":0,"message":"ok","data":{"status":"UP","service":"campus-lost-found-backend","version":"0.1.0"},"traceId":"..."}
+{"code":0,"message":"ok","data":{"status":"UP","service":"campus-lost-found-backend","version":"0.2.0"},"traceId":"..."}
 ```
 
 默认配置只保证健康检查等基础接口可启动，不执行数据库迁移。运行真实业务接口时先启动 MySQL，并使用 `local` 配置：
@@ -135,10 +136,18 @@ docker compose -f deploy\docker-compose.dev.yml ps
 | `GET /api/v1/categories` | 启用的物品分类 |
 | `GET /api/v1/posts` | 公开帖子游标分页、类型/分类/关键词筛选 |
 | `GET /api/v1/posts/{publicId}` | 公开帖子详情 |
+| `POST /api/v1/auth/sms-code` | 发送登录验证码（本地固定为 `123456`） |
+| `POST /api/v1/auth/login` | 学号 + 手机号 + 验证码登录，返回访问令牌并写入刷新令牌 Cookie |
+| `POST /api/v1/auth/refresh` | 轮换刷新令牌并恢复会话 |
+| `POST /api/v1/auth/logout` | 注销刷新会话并清除 Cookie |
+| `GET /api/v1/users/me` | 获取当前登录用户资料（需 Bearer 令牌） |
+| `PUT /api/v1/users/me` | 修改当前用户资料（需 Bearer 令牌） |
 | `GET /health` | AI 服务健康检查 |
 | `GET /actuator/health` | Spring Boot Actuator |
 
 前端开发服务器把 `/api` 代理到 `8081`、`/ai` 代理到 `8000`，因此浏览器端不涉及跨域配置。
+
+本地演示账号：学号 `20260001`，手机号 `13800000001`，固定验证码 `123456`。首次使用其他学号登录会自动建立学生账号，并引导完善姓名与院系。
 
 ## 常见问题
 
@@ -171,6 +180,16 @@ netstat -ano | findstr :8081
 
 前端会自动换端口；后端默认端口是 8081（8080 常被 Steam 等软件占用），可在 `application.yml` 改，或启动前设置 `$env:SERVER_PORT="9000"`。
 
+代理工具（如 mihomo / Clash）可能把 8081 用作出站连接的本地端口。此时 `netstat` 看到的是 `ESTABLISHED` 或 `TIME_WAIT` 而不是 `LISTEN`，但 Tomcat 仍会报 `Port 8081 was already in use`。可以临时换端口，并让前端代理指向同一地址：
+
+```powershell
+# 后端终端
+$env:SERVER_PORT = "8091"
+
+# 前端终端
+$env:VITE_API_TARGET = "http://localhost:8091"
+```
+
 **端口不通时页面显示“未连接”**
 
 这是预期行为：首页的服务状态卡会分别探测后端与 AI 服务，未启动即显示离线，不影响前端本身运行。
@@ -184,6 +203,8 @@ netstat -ano | findstr :8081
 - [x] MySQL 8.4 空库可由 Flyway 一键迁移并写入开发种子
 - [x] 分类、帖子列表、游标分页、关键词检索、详情接口通过集成测试
 - [x] 首页改为真实 API，覆盖加载、空结果、失败重试、加载更多与详情抽屉
+- [x] 验证码登录、JWT 访问令牌、HttpOnly 刷新令牌轮换与退出登录
+- [x] 个人资料读取与修改，登录弹窗、账号菜单和个人中心页面
 - [x] Compose 文件可解析（`docker compose config`）
 - [ ] 三位成员各自电脑按 README 跑通（需团队确认）
 - [ ] 首次提交与分支约定落地（需团队确认）

@@ -10,3 +10,7 @@ mybatis-plus:
     cache-enabled: false
   global-config:
     banner: false
+
+app:
+  auth:
+    expose-sms-code: true

@@ -28,7 +28,7 @@ class HealthControllerTest {
                 .andExpect(header().exists("X-Request-Id"))
                 .andExpect(jsonPath("$.data.status").value("UP"))
                 .andExpect(jsonPath("$.data.service").value("campus-lost-found-backend"))
-                .andExpect(jsonPath("$.data.version").value("0.1.0"))
+                .andExpect(jsonPath("$.data.version").value("0.2.0"))
                 .andExpect(jsonPath("$.data.timestamp").exists());
     }
 

@@ -25,7 +25,23 @@ public class ApiException extends RuntimeException {
         return new ApiException(40001, HttpStatus.BAD_REQUEST, message);
     }
 
+    public static ApiException unauthorized(String message) {
+        return new ApiException(40100, HttpStatus.UNAUTHORIZED, message);
+    }
+
+    public static ApiException forbidden(String message) {
+        return new ApiException(40300, HttpStatus.FORBIDDEN, message);
+    }
+
     public static ApiException notFound(String message) {
         return new ApiException(40400, HttpStatus.NOT_FOUND, message);
+    }
+
+    public static ApiException conflict(String message) {
+        return new ApiException(40900, HttpStatus.CONFLICT, message);
+    }
+
+    public static ApiException tooManyRequests(String message) {
+        return new ApiException(42900, HttpStatus.TOO_MANY_REQUESTS, message);
     }
 }

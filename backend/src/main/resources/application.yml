@@ -36,7 +36,17 @@ management:
 info:
   app:
     name: ${spring.application.name}
-    version: 0.1.0
+    version: 0.2.0
+
+app:
+  auth:
+    jwt-secret: ${AUTH_JWT_SECRET:clf-local-development-jwt-secret-change-before-deploy}
+    access-token-ttl: ${AUTH_ACCESS_TOKEN_TTL:2h}
+    refresh-token-ttl: ${AUTH_REFRESH_TOKEN_TTL:7d}
+    refresh-cookie-name: ${AUTH_REFRESH_COOKIE:clf_refresh}
+    refresh-cookie-secure: ${AUTH_REFRESH_COOKIE_SECURE:false}
+    fixed-sms-code: ${AUTH_FIXED_SMS_CODE:123456}
+    expose-sms-code: ${AUTH_EXPOSE_SMS_CODE:false}
 
 logging:
   level:

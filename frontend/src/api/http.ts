@@ -8,5 +8,19 @@ export const http = axios.create({
   baseURL: '/',
   timeout: 5000,
   headers: { Accept: 'application/json' },
+  withCredentials: true,
+})
+
+let accessToken = ''
+
+export function setAccessToken(token: string): void {
+  accessToken = token
+}
+
+http.interceptors.request.use((config) => {
+  if (accessToken && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${accessToken}`
+  }
+  return config
 })
 
