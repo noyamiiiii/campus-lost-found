@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ChevronDown, LogIn, PackageSearch, Plus, UserRound } from 'lucide-vue-next'
+import { ChevronDown, LogIn, PackageSearch, Plus, ShieldCheck, UserRound } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/auth'
 
 defineEmits<{ publish: [] }>()
@@ -11,10 +11,14 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const activeKind = computed(() => (route.query.kind === 'lost' || route.query.kind === 'found' ? route.query.kind : 'all'))
+const isAdmin = computed(() => auth.user?.role === 'ADMIN')
 
 async function handleAccountCommand(command: string): Promise<void> {
   if (command === 'profile') {
     await router.push('/profile')
+  }
+  if (command === 'admin') {
+    await router.push('/admin')
   }
   if (command === 'logout') {
     await auth.logout()
@@ -67,6 +71,10 @@ async function handleAccountCommand(command: string): Promise<void> {
               <el-dropdown-item command="profile">
                 <UserRound :size="15" />
                 个人中心
+              </el-dropdown-item>
+              <el-dropdown-item v-if="isAdmin" command="admin">
+                <ShieldCheck :size="15" />
+                管理后台
               </el-dropdown-item>
               <el-dropdown-item command="logout">退出登录</el-dropdown-item>
             </el-dropdown-menu>

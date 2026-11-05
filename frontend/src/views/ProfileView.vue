@@ -1,8 +1,24 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
-import { BadgeCheck, LoaderCircle, LogIn, MessageCircle, Phone, Save, School } from 'lucide-vue-next'
-import { toRequestMessage } from '@/api/posts'
+import {
+  BadgeCheck,
+  Clock,
+  LoaderCircle,
+  LogIn,
+  MessageCircle,
+  Phone,
+  Save,
+  School,
+} from 'lucide-vue-next'
+import { fetchMyPosts, toRequestMessage } from '@/api/posts'
 import { useAuthStore } from '@/stores/auth'
+import {
+  formatEventTime,
+  itemKindLabels,
+  itemStatusLabels,
+  itemStatusTone,
+  type ItemSummary,
+} from '@/types/item'
 
 const auth = useAuthStore()
 
@@ -14,6 +30,8 @@ const form = reactive({
 })
 const error = ref('')
 const saved = ref(false)
+const myPosts = ref<ItemSummary[]>([])
+const postsLoading = ref(false)
 
 function fillForm(): void {
   form.realName = auth.user?.realName ?? ''
@@ -48,9 +66,25 @@ async function save(): Promise<void> {
 
 watch(() => auth.user, fillForm, { immediate: true })
 
+async function loadMyPosts(): Promise<void> {
+  if (!auth.user) {
+    myPosts.value = []
+    return
+  }
+  postsLoading.value = true
+  try {
+    myPosts.value = await fetchMyPosts()
+  } catch {
+    myPosts.value = []
+  } finally {
+    postsLoading.value = false
+  }
+}
+
 onMounted(async () => {
   await auth.bootstrap()
   fillForm()
+  await loadMyPosts()
 })
 </script>
 
@@ -137,6 +171,36 @@ onMounted(async () => {
             </el-button>
           </div>
         </form>
+      </section>
+
+      <section class="my-posts">
+        <div class="section-heading">
+          <div>
+            <h2>我的发布</h2>
+            <p>共 {{ myPosts.length }} 条，最多展示最近 50 条。</p>
+          </div>
+          <LoaderCircle v-if="postsLoading" :size="16" class="spin" />
+        </div>
+
+        <ul v-if="myPosts.length > 0" class="my-posts__list">
+          <li v-for="post in myPosts" :key="post.publicId">
+            <div class="my-posts__head">
+              <span class="kind-tag" :class="`kind-tag--${post.type.toLowerCase()}`">
+                {{ itemKindLabels[post.type] }}
+              </span>
+              <strong>{{ post.title }}</strong>
+              <span class="item-status" :class="`item-status--${itemStatusTone(post.status)}`">
+                {{ itemStatusLabels[post.status] }}
+              </span>
+            </div>
+            <div class="my-posts__meta">
+              <span>{{ post.publicId }}</span>
+              <span><Clock :size="13" />{{ formatEventTime(post.eventTime) }}</span>
+              <span>{{ post.categoryName }}</span>
+            </div>
+          </li>
+        </ul>
+        <p v-else-if="!postsLoading" class="my-posts__empty">还没有发布记录，点顶部“发布”填写第一条。</p>
       </section>
     </div>
   </div>

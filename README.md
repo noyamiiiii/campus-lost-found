@@ -134,8 +134,11 @@ docker compose -f deploy\docker-compose.dev.yml ps
 | --- | --- |
 | `GET /api/v1/health` | 后端健康检查（统一响应结构） |
 | `GET /api/v1/categories` | 启用的物品分类 |
+| `GET /api/v1/locations` | 启用的校园地点，发帖时选择 |
 | `GET /api/v1/posts` | 公开帖子游标分页、类型/分类/关键词筛选 |
 | `GET /api/v1/posts/{publicId}` | 公开帖子详情 |
+| `POST /api/v1/posts` | 发布寻物/招领（需 Bearer 令牌） |
+| `GET /api/v1/posts/mine` | 自己发布的帖子（需 Bearer 令牌） |
 | `POST /api/v1/auth/sms-code` | 发送注册/登录验证码（本地固定为 `123456`） |
 | `POST /api/v1/auth/register` | 学号 + 手机号 + 验证码注册，成功即返回登录会话 |
 | `POST /api/v1/auth/login` | 已注册账号登录，返回访问令牌并写入刷新令牌 Cookie |
@@ -143,12 +146,17 @@ docker compose -f deploy\docker-compose.dev.yml ps
 | `POST /api/v1/auth/logout` | 注销刷新会话并清除 Cookie |
 | `GET /api/v1/users/me` | 获取当前登录用户资料（需 Bearer 令牌） |
 | `PUT /api/v1/users/me` | 修改当前用户资料（需 Bearer 令牌） |
+| `GET /api/v1/admin/summary` | 管理后台统计（需 ADMIN 角色） |
+| `GET /api/v1/admin/users` | 账号分页查询（需 ADMIN 角色） |
+| `PATCH /api/v1/admin/users/{publicId}/status` | 封禁/解封账号（需 ADMIN 角色） |
 | `GET /health` | AI 服务健康检查 |
 | `GET /actuator/health` | Spring Boot Actuator |
 
 前端开发服务器把 `/api` 代理到 `8081`、`/ai` 代理到 `8000`，因此浏览器端不涉及跨域配置。
 
 本地演示账号：学号 `20260001`，手机号 `13800000001`，固定验证码 `123456`。验证码需要先点击“获取验证码”才会生成并自动填入，有效期为 5 分钟；改了学号或手机号要重新获取。新账号请在登录弹窗中切换到“注册”，注册成功后会自动登录并引导完善姓名与院系。
+
+管理员演示账号：学号 `admin`，手机号 `13900000000`，验证码同样是先点击“获取验证码”再自动填入。登录后右上角账号菜单会出现“管理后台”，可以查看账号、发布数量并封禁/解封账号。
 
 ## 常见问题
 

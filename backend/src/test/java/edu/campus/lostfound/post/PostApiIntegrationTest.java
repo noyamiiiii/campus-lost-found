@@ -1,14 +1,19 @@
 package edu.campus.lostfound.post;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.jayway.jsonpath.JsonPath;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.ActiveProfiles;
@@ -41,6 +46,9 @@ class PostApiIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void listsCategoriesFromDatabase() throws Exception {
@@ -110,5 +118,82 @@ class PostApiIntegrationTest {
         mockMvc.perform(get("/api/v1/posts").param("type", "invalid"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(40001));
+    }
+
+    @Test
+    void createsPostAndExposesItInFeedAndMyList() throws Exception {
+        String token = loginAs("20260001", "13800000001");
+        String eventTime = OffsetDateTime.now(ZoneId.of("Asia/Shanghai")).minusHours(2).toString();
+        String payload = """
+                {"type":"FOUND","title":"教学楼捡到一只灰色水壶","description":"水壶放在二教 205 讲台旁，壶身有白色贴纸，已交到值班室。",
+                 "categoryId":10,"locationId":2,"detail":"205 教室讲台","eventTime":"%s","color":"灰色","contactMode":"IN_APP_ONLY"}
+                """.formatted(eventTime);
+
+        String publicId = null;
+        try {
+            MvcResult created = mockMvc.perform(post("/api/v1/posts")
+                            .header("Authorization", "Bearer " + token)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(payload))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(0))
+                    .andExpect(jsonPath("$.data.type").value("FOUND"))
+                    .andExpect(jsonPath("$.data.locationName").value("第二教学楼"))
+                    .andExpect(jsonPath("$.data.status").value("ACTIVE"))
+                    .andReturn();
+
+            publicId = JsonPath.read(created.getResponse().getContentAsString(), "$.data.publicId");
+
+            mockMvc.perform(get("/api/v1/posts/mine").header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(1))
+                    .andExpect(jsonPath("$.data[0].publicId").value(publicId));
+
+            mockMvc.perform(get("/api/v1/posts").param("keyword", "水壶"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.list[0].publicId").value(publicId));
+        } finally {
+            if (publicId != null) {
+                jdbcTemplate.update("DELETE FROM item_post WHERE public_id = ?", publicId);
+            }
+        }
+    }
+
+    @Test
+    void rejectsCreateWithoutLoginAndWithInvalidFields() throws Exception {
+        mockMvc.perform(get("/api/v1/posts/mine"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value(40100));
+
+        String token = loginAs("20260002", "13800000002");
+        mockMvc.perform(post("/api/v1/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"FOUND\",\"title\":\"短\",\"description\":\"太短\",\"categoryId\":1,"
+                                + "\"eventTime\":\"2026-11-01T09:00:00+08:00\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(40001));
+
+        mockMvc.perform(post("/api/v1/posts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"type\":\"FOUND\",\"title\":\"正常的标题\",\"description\":\"正常的描述内容\","
+                                + "\"categoryId\":9999,\"eventTime\":\"2026-11-01T09:00:00+08:00\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("物品分类不存在或已停用"));
+    }
+
+    private String loginAs(String studentNo, String phone) throws Exception {
+        mockMvc.perform(post("/api/v1/auth/sms-code")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentNo\":\"" + studentNo + "\",\"phone\":\"" + phone + "\"}"))
+                .andExpect(status().isOk());
+
+        MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"studentNo\":\"" + studentNo + "\",\"phone\":\"" + phone + "\",\"code\":\"123456\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        return JsonPath.read(login.getResponse().getContentAsString(), "$.data.accessToken");
     }
 }

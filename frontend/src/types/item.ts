@@ -41,6 +41,28 @@ export interface ItemPage {
   hasMore: boolean
 }
 
+export interface PostCreateInput {
+  type: ItemKind
+  title: string
+  description: string
+  categoryId: number
+  locationId: number | null
+  detail: string | null
+  eventTime: string
+  brand: string | null
+  color: string | null
+  contactMode: ContactMode
+}
+
+export interface CampusLocation {
+  id: number
+  name: string
+  alias: string | null
+  building: string | null
+  type: string
+  servicePoint: boolean
+}
+
 export const itemKindLabels: Record<ItemKind, string> = {
   LOST: '寻物',
   FOUND: '招领',

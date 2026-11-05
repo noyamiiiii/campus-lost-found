@@ -41,9 +41,11 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler(objectMapper)))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/posts/mine").authenticated()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/v1/health",
                                 "/api/v1/categories",
+                                "/api/v1/locations",
                                 "/api/v1/posts",
                                 "/api/v1/posts/**",
                                 "/actuator/health").permitAll()
@@ -54,6 +56,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout").permitAll()
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

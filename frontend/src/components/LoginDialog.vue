@@ -248,6 +248,9 @@ onBeforeUnmount(() => {
           <strong>123456</strong>
         </div>
       </div>
+      <p v-if="mode === 'login'" class="demo-admin">
+        管理员演示账号：<strong>admin</strong> / <strong>13900000000</strong>，验证码同样先点获取。
+      </p>
 
       <div v-else class="register-hint">
         <ShieldCheck :size="15" />

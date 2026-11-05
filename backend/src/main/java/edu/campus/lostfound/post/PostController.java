@@ -1,11 +1,19 @@
 package edu.campus.lostfound.post;
 
+import edu.campus.lostfound.auth.AuthenticatedUser;
 import edu.campus.lostfound.common.ApiResponse;
+import edu.campus.lostfound.post.PostDtos.PostCreateRequest;
 import edu.campus.lostfound.post.PostDtos.PostDetail;
 import edu.campus.lostfound.post.PostDtos.PostPage;
+import edu.campus.lostfound.post.PostDtos.PostSummary;
+import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.context.annotation.Profile;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,5 +43,20 @@ public class PostController {
     @GetMapping("/{publicId}")
     public ApiResponse<PostDetail> get(@PathVariable String publicId) {
         return ApiResponse.ok(postService.get(publicId));
+    }
+
+    @GetMapping("/mine")
+    public ApiResponse<List<PostSummary>> mine(Authentication authentication) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return ApiResponse.ok(postService.listMine(user.userId()));
+    }
+
+    @PostMapping
+    public ApiResponse<PostDetail> create(
+            @Valid @RequestBody PostCreateRequest request,
+            Authentication authentication
+    ) {
+        AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
+        return ApiResponse.ok(postService.create(user.userId(), request));
     }
 }

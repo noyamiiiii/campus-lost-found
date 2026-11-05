@@ -5,6 +5,7 @@ import { AlertCircle, ChevronDown, LoaderCircle, Search } from 'lucide-vue-next'
 import ItemCard from '@/components/ItemCard.vue'
 import ServiceStatusPanel from '@/components/ServiceStatusPanel.vue'
 import { fetchCategories, fetchPostDetail, fetchPosts, toRequestMessage, type Category } from '@/api/posts'
+import { useFeedStore } from '@/stores/feed'
 import {
   contactModeLabels,
   formatEventTime,
@@ -17,6 +18,7 @@ import {
 } from '@/types/item'
 
 const route = useRoute()
+const feed = useFeedStore()
 
 const keyword = ref('')
 const categoryId = ref(0)
@@ -191,6 +193,13 @@ watch([keyword, categoryId], () => {
 
 watch(
   () => route.query.kind,
+  () => {
+    void reload()
+  },
+)
+
+watch(
+  () => feed.version,
   () => {
     void reload()
   },

@@ -20,4 +20,6 @@ public interface PostQueryMapper {
     );
 
     PostRow findByPublicId(@Param("publicId") String publicId);
+
+    List<PostRow> findMine(@Param("userId") Long userId, @Param("limit") int limit);
 }

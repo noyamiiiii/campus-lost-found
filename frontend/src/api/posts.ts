@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { http } from './http'
-import type { ItemDetail, ItemKind, ItemPage } from '@/types/item'
+import type { CampusLocation, ItemDetail, ItemKind, ItemPage, ItemSummary, PostCreateInput } from '@/types/item'
 
 interface ApiEnvelope<T> {
   code: number
@@ -56,6 +56,21 @@ export async function fetchPosts(query: PostQuery): Promise<ItemPage> {
 
 export async function fetchPostDetail(publicId: string): Promise<ItemDetail> {
   const { data } = await http.get<ApiEnvelope<ItemDetail>>(`/api/v1/posts/${encodeURIComponent(publicId)}`)
+  return unwrap(data)
+}
+
+export async function fetchLocations(): Promise<CampusLocation[]> {
+  const { data } = await http.get<ApiEnvelope<{ items: CampusLocation[] }>>('/api/v1/locations')
+  return unwrap(data).items
+}
+
+export async function createPost(input: PostCreateInput): Promise<ItemDetail> {
+  const { data } = await http.post<ApiEnvelope<ItemDetail>>('/api/v1/posts', input)
+  return unwrap(data)
+}
+
+export async function fetchMyPosts(): Promise<ItemSummary[]> {
+  const { data } = await http.get<ApiEnvelope<ItemSummary[]>>('/api/v1/posts/mine')
   return unwrap(data)
 }
 

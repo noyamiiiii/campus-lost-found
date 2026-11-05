@@ -316,3 +316,47 @@ Invoke-WebRequest -Uri 'http://localhost:8091/api/v1/auth/sms-code' -Method POST
 - 白名单只覆盖 `localhost` 与 `127.0.0.1`，用局域网 IP 访问仍会被拒绝。
 - 改动需要重启后端才生效；IDEA 里运行的那个实例要重新启动一次。
 
+## 2026-11-05 发布帖子与管理后台
+
+验证目标：把发帖从占位弹窗改成真实表单，并新增只对管理员开放的账号管理页。
+
+### 新增接口
+
+| 接口 | 说明 |
+| --- | --- |
+| `POST /api/v1/posts` | 登录后发布寻物/招领，字段校验后写入 `item_post` |
+| `GET /api/v1/posts/mine` | 当前账号最近 50 条发布记录 |
+| `GET /api/v1/locations` | 发帖时可选校园地点 |
+| `GET /api/v1/admin/summary` | 账号数、封禁数、帖子数统计 |
+| `GET /api/v1/admin/users` | 账号分页 + 关键词/状态筛选 |
+| `PATCH /api/v1/admin/users/{publicId}/status` | 封禁/解封，写 `admin_audit_log` 并吊销刷新令牌 |
+
+### 实现要点
+
+| 位置 | 说明 |
+| --- | --- |
+| `PostService.create` | 校验类型、分类、地点、时间范围；生成 `LF-yyyyMMdd-XXXX` 编号；默认 30 天有效 |
+| 发布状态 | 当前直接写入 `APPROVED/ACTIVE`，审核队列留待后续迭代 |
+| 管理端权限 | `SecurityConfig` 中 `/api/v1/admin/**` 要求 `ROLE_ADMIN`，JWT 里的 `role` 参与鉴权 |
+| 封禁效果 | 登录与刷新都会校验 `status`；封禁同时吊销该账号未过期的刷新令牌 |
+| 管理端保护 | 不能修改自己的状态，不能封禁 `ADMIN` 角色账号 |
+| 前端 | 新增 `PublishDialog.vue`、`AdminView.vue`、`api/admin.ts`、`feed` store；首页发布后自动刷新 |
+| 数据 | `db/dev/V4__seed_local_admin_account.sql` 新增管理员演示账号 `admin` / `13900000000` |
+
+### 验证结果
+
+| 项 | 结果 |
+| --- | --- |
+| 后端编译 | 通过：`mvn test-compile` |
+| 前端类型检查 | 通过：`vue-tsc --noEmit` |
+| 前端生产构建 | 通过：`vite build`，AdminView 已按路由拆包 |
+| 界面检查（模拟接口） | 通过：12 项，覆盖发布校验、发布请求字段、弹窗关闭、账号列表、封禁确认、管理员不可封禁、移动端无横向溢出 |
+| 发布与管理员接口测试 | 已编写 `PostApiIntegrationTest` 新用例与 `AdminApiIntegrationTest`，**待 Docker 恢复后执行** |
+
+### 待办
+
+- 本次未执行后端集成测试：Docker Desktop 启动时报 `docker-secrets-engine/engine.sock` 残留导致引擎崩溃，需要重启机器释放该文件后重跑。
+- 发帖暂不支持图片上传与 AI 打标。
+- 发布后直接进入公开列表，尚未接入审核队列。
+- 管理后台暂只覆盖账号状态，举报、帖子审核、角色变更留待后续。
+

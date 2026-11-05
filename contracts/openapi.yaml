@@ -272,6 +272,53 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+    post:
+      operationId: createPost
+      summary: 发布失物或招领
+      description: 需要登录。创建后立即出现在公开列表，默认 30 天有效。
+      tags: [posts]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostCreateRequest"
+      responses:
+        "200":
+          description: 创建成功，返回帖子详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePostDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/posts/mine:
+    get:
+      operationId: listMyPosts
+      summary: 查询自己发布的帖子
+      description: 需要登录，返回最近 50 条，包含尚未公开的状态。
+      tags: [posts]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 自己的帖子列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePostSummaryList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/posts/{publicId}:
     get:
       operationId: getPost
@@ -293,6 +340,150 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponsePostDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/locations:
+    get:
+      operationId: listLocations
+      summary: 查询可用校园地点
+      tags: [catalog]
+      responses:
+        "200":
+          description: 地点列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseLocationList"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/admin/summary:
+    get:
+      operationId: getAdminSummary
+      summary: 管理后台统计
+      description: 仅 ADMIN 角色可访问。
+      tags: [admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 统计数据
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: 当前账号不是管理员
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/admin/users:
+    get:
+      operationId: listAdminUsers
+      summary: 分页查询账号
+      description: 仅 ADMIN 角色可访问，手机号按 3-4 位掩码返回。
+      tags: [admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: keyword
+          in: query
+          description: 学号、姓名或手机号模糊匹配
+          schema:
+            type: string
+            maxLength: 64
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, BANNED]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 5
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: 账号分页
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminUserPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: 当前账号不是管理员
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/admin/users/{publicId}/status:
+    patch:
+      operationId: updateUserStatus
+      summary: 封禁或解封账号
+      description: 仅 ADMIN 角色可访问；不能修改自己或其它管理员账号，封禁会同时吊销该账号的刷新令牌。
+      tags: [admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [ACTIVE, BANNED]
+                reason:
+                  type: string
+                  maxLength: 200
+      responses:
+        "200":
+          description: 更新后的账号
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseAdminUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: 当前账号不是管理员或不允许操作该账号
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -778,4 +969,218 @@ components:
         traceId:
           type: string
           examples: [8f4c2a51cbb84b4f9e2f6b7e09cb4d8a]
+
+    PostCreateRequest:
+      type: object
+      required: [type, title, description, categoryId, eventTime]
+      properties:
+        type:
+          $ref: "#/components/schemas/PostType"
+        title:
+          type: string
+          minLength: 2
+          maxLength: 60
+        description:
+          type: string
+          minLength: 5
+          maxLength: 1000
+        categoryId:
+          type: integer
+          format: int64
+        locationId:
+          type: integer
+          format: int64
+          nullable: true
+        detail:
+          type: string
+          maxLength: 200
+          nullable: true
+        eventTime:
+          type: string
+          format: date-time
+          description: 不能晚于当前时间，也不能早于一年前
+        brand:
+          type: string
+          maxLength: 64
+          nullable: true
+        color:
+          type: string
+          maxLength: 16
+          nullable: true
+        contactMode:
+          type: string
+          enum: [PUBLIC, AFTER_CLAIM, IN_APP_ONLY]
+          default: IN_APP_ONLY
+
+    LocationView:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        alias:
+          type: string
+          nullable: true
+        building:
+          type: string
+          nullable: true
+        type:
+          type: string
+        servicePoint:
+          type: boolean
+
+    AdminSummaryData:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+          format: int64
+        activeUsers:
+          type: integer
+          format: int64
+        bannedUsers:
+          type: integer
+          format: int64
+        adminUsers:
+          type: integer
+          format: int64
+        totalPosts:
+          type: integer
+          format: int64
+        activePosts:
+          type: integer
+          format: int64
+
+    AdminUserView:
+      type: object
+      properties:
+        publicId:
+          type: string
+        studentNo:
+          type: string
+          nullable: true
+        realName:
+          type: string
+          nullable: true
+        phoneMasked:
+          type: string
+          nullable: true
+        dept:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [STUDENT, SERVICE_ADMIN, ADMIN]
+        status:
+          type: string
+          enum: [ACTIVE, BANNED, DELETED]
+        postCount:
+          type: integer
+          format: int64
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    AdminUserPage:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminUserView"
+        total:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        size:
+          type: integer
+
+    ApiResponsePostSummaryList:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostSummary"
+        traceId:
+          type: string
+
+    ApiResponseLocationList:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/LocationView"
+        traceId:
+          type: string
+
+    ApiResponseAdminSummary:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          $ref: "#/components/schemas/AdminSummaryData"
+        traceId:
+          type: string
+
+    ApiResponseAdminUserPage:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          $ref: "#/components/schemas/AdminUserPage"
+        traceId:
+          type: string
+
+    ApiResponseAdminUser:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          $ref: "#/components/schemas/AdminUserView"
+        traceId:
+          type: string
 

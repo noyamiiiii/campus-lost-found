@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.campus.lostfound.admin.AdminQueryMapper">
+
+    <sql id="userFilter">
+        u.status &lt;&gt; 'DELETED'
+        <if test="status != null and status != ''">
+            AND u.status = #{status}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (u.student_no LIKE CONCAT('%', #{keyword}, '%')
+                 OR u.real_name LIKE CONCAT('%', #{keyword}, '%')
+                 OR u.phone LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </sql>
+
+    <select id="findUsers" resultType="edu.campus.lostfound.admin.AdminUserRow">
+        SELECT
+            u.public_id,
+            u.student_no,
+            u.real_name,
+            u.phone,
+            u.dept,
+            u.role,
+            u.status,
+            u.created_at,
+            u.last_login_at,
+            (SELECT COUNT(*) FROM item_post p WHERE p.user_id = u.id AND p.deleted_at IS NULL) AS post_count
+        FROM sys_user u
+        WHERE <include refid="userFilter"/>
+        ORDER BY u.created_at DESC, u.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countUsers" resultType="long">
+        SELECT COUNT(*)
+        FROM sys_user u
+        WHERE <include refid="userFilter"/>
+    </select>
+</mapper>

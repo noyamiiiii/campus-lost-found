@@ -13,9 +13,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class CatalogController {
 
     private final CategoryService categoryService;
+    private final LocationService locationService;
 
-    public CatalogController(CategoryService categoryService) {
+    public CatalogController(CategoryService categoryService, LocationService locationService) {
         this.categoryService = categoryService;
+        this.locationService = locationService;
     }
 
     @GetMapping("/categories")
@@ -23,6 +25,14 @@ public class CatalogController {
         return ApiResponse.ok(new CategoryListData(categoryService.listEnabled()));
     }
 
+    @GetMapping("/locations")
+    public ApiResponse<LocationListData> listLocations() {
+        return ApiResponse.ok(new LocationListData(locationService.listEnabled()));
+    }
+
     public record CategoryListData(List<CategoryService.CategoryView> items) {
+    }
+
+    public record LocationListData(List<LocationService.LocationView> items) {
     }
 }

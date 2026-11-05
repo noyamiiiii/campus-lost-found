@@ -71,4 +71,14 @@
           AND p.public_id = #{publicId}
         LIMIT 1
     </select>
+
+    <select id="findMine" resultType="edu.campus.lostfound.post.PostRow">
+        SELECT
+        <include refid="publicPostColumns"/>
+        <include refid="publicPostJoins"/>
+        WHERE p.deleted_at IS NULL
+          AND p.user_id = #{userId}
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT #{limit}
+    </select>
 </mapper>
