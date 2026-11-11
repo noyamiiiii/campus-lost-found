@@ -30,6 +30,7 @@ public class ItemPostEntity {
     private Integer extendCount;
     private LocalDateTime expireAt;
     private LocalDateTime publishedAt;
+    private LocalDateTime returnedAt;
     private LocalDateTime deletedAt;
     private Integer version;
 
@@ -215,5 +216,13 @@ public class ItemPostEntity {
 
     public void setVersion(Integer version) {
         this.version = version;
+    }
+
+    public LocalDateTime getReturnedAt() {
+        return returnedAt;
+    }
+
+    public void setReturnedAt(LocalDateTime returnedAt) {
+        this.returnedAt = returnedAt;
     }
 }

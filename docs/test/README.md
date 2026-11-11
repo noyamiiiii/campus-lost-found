@@ -360,3 +360,100 @@ Invoke-WebRequest -Uri 'http://localhost:8091/api/v1/auth/sms-code' -Method POST
 - 发布后直接进入公开列表，尚未接入审核队列。
 - 管理后台暂只覆盖账号状态，举报、帖子审核、角色变更留待后续。
 
+## 2026-11-11 图片上传、认领闭环与通知
+
+验证目标：把「发帖只有文字」和「捡到东西无法在平台内确认归属」两个缺口补上——图片可上传并展示，认领走完发起→发布者确认→线下交接→核销，每一步都给对方发站内通知。
+
+### 新增接口
+
+| 接口 | 说明 |
+| --- | --- |
+| `POST /api/v1/files` | 上传图片（multipart，字段名 `file`），识别 JPEG/PNG/GIF/WebP，返回地址与像素尺寸 |
+| `GET /files/{key}` | 本地存储模式下直接提供图片访问（provider=local） |
+| `POST /api/v1/posts/{publicId}/claims` | 发起认领，必须填写归属说明（≥5 字），可附联系方式与佐证图 |
+| `GET /api/v1/claims/mine` | 我发起的认领 |
+| `GET /api/v1/claims/received` | 别人对我发布的帖子发起的认领 |
+| `GET /api/v1/claims/{publicId}` | 认领详情（仅当事人与管理员可见） |
+| `POST /api/v1/claims/{publicId}/confirm` | 发布者同意认领，帖子转 `CLAIMING` |
+| `POST /api/v1/claims/{publicId}/reject` | 发布者驳回，申请人可 `reopen` 重新提交 |
+| `POST /api/v1/claims/{publicId}/cancel` | 申请人撤回 |
+| `POST /api/v1/claims/{publicId}/complete` | 线下交接完成，帖子转 `CLAIMED` 并记录归还时间 |
+| `GET /api/v1/notifications` | 通知列表（最近 50 条） |
+| `GET /api/v1/notifications/unread-count` | 未读数，供顶栏角标轮询 |
+| `POST /api/v1/notifications/{id}/read` | 单条已读 |
+| `POST /api/v1/notifications/read-all` | 全部已读 |
+
+### 实现要点
+
+| 位置 | 说明 |
+| --- | --- |
+| `storage/StorageService` | 存储抽象：`LocalDiskStorage`（默认，写 `backend/data/files`，`/files/**` 映射）与 `S3Storage`（MinIO/兼容 S3，自签 SigV4，不引入新依赖） |
+| 存储降级 | MinIO 不可用时**不阻断启动**，上传返回 `503 / 50301 文件存储暂不可用`，其余功能照常 |
+| `file/FileService` | 按魔数识别类型（不信任 Content-Type）、算 SHA-256、写 `file_object`；`requireOwnedImage` 防越权引用他人图片 |
+| 帖图关联 | `POST /posts` 的 `imageIds`（≤6）写入 `item_image`，主图取第一张，详情与列表返回 `images[]` |
+| `claim/ClaimService` | 状态机 `PENDING → CONFIRMED → COMPLETED`，另有 `REJECTED / CANCELED`；DB 生成列 `active_flag` + 唯一键保证同帖只有一条进行中认领 |
+| 权限边界 | 只有发布者能 confirm/reject/complete，只有申请人能 cancel/reopen；自己不能认领自己 |
+| `notification/NotificationService` | 事件落库 + `dedupe_key` 去重；投稿、认领确认/驳回/交接各产生一条 |
+| 前端 | `ImageUploader.vue`、`ClaimDialog.vue`、`ClaimsView.vue`、`NotificationsView.vue`，顶栏铃铛 60s 轮询未读数 |
+
+### 验证结果
+
+| 项 | 结果 |
+| --- | --- |
+| 后端测试 | 24 个用例全部通过（新增 `FileApiIntegrationTest` 4 个、`ClaimApiIntegrationTest` 2 个） |
+| SigV4 签名校验 | 用独立 Python 校验器（`G:\dsh-workspace\python\mock_s3_verify.py`）重算 canonical request 比对签名，PUT 通过 |
+| 存储降级 | 停掉 MinIO 后启动正常，上传返回 `503/50301`，`/api/v1/health` 与列表接口不受影响 |
+| 前端类型检查 | 通过：`vue-tsc --noEmit` |
+| 前端构建 | 通过：`vite build`，9.6 s |
+| 端到端冒烟 | 上传 → 发帖带图 → 认领 → 驳回 → 重新提交 → 确认 → 核销 → 帖子转 `CLAIMED`，未读通知计数同步变化 |
+
+### 已知限制
+
+- 交接凭证 `verify_code_hash`、物品保管记录 `custody_record` 已有表结构但尚未在接口层使用，交接仍靠线下沟通 + 手动核销。
+- 认领附属问题（`claim_question` / `claim_answer`）未开放，归属说明目前是一段自由文本。
+- 图片未做缩略图与压缩，大于 5 MB 的图直接拒绝；`thumb_key` 字段预留。
+- MinIO 直传改用预签名 URL 会更省后端带宽，当前选择后端中转是为了本地无 Docker 也能跑。
+
+
+## 2026-11-11 候选匹配与 AI 服务
+
+验证日期：2026-11-11
+验证人：Codex（本机 G:\软件工程）
+
+### 接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/v1/posts/{publicId}/matches` | 返回相反类型、状态为 ACTIVE/CLAIMING 的候选记录，按 score 降序，最多 5 条，附 `reasons` 说明得分来源 |
+
+打分规则（`PostMatchService`）：同类别 +3、同一地点 +2、同品牌/同颜色各 +1、描述词元重合每项 +2（最多 3 项）。词元由中文二元组（bigram）与英文单词组成，`一张/一把/捡到/丢失/校园/有一` 等高频噪声词在切分时剔除，避免所有记录都被判为相似。
+
+### AI 服务（ai-service 0.2.0）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/health` | 状态、版本、`model_loaded`（当前恒为 false） |
+| POST | `/similar` | `{text, candidates:[{id,text}], top_k}` → 带 score 与 shared 的排序结果 |
+| POST | `/similar/pair` | 两条文本的 Jaccard 相似度 |
+| POST | `/tags` | 抽取关键词，供表单联想 |
+
+实现是纯 Python（`app/textmatch.py`），不加载模型，启动在 1 秒内；后续接入 CLIP 时替换实现即可，接口形状不变。
+
+### 前端
+
+- 详情抽屉新增「可能的匹配」区块：加载中提示、空态文案、候选列表（类型标签、标题、相似度、命中理由）。
+- 列表卡片显示封面图（`primary` 优先），无图时回退图标占位。
+- 抽屉底部新增「我要认领 / 登录后认领」按钮，接 `ClaimDialog`。
+
+### 验证结果
+
+- 后端 `mvn -q -B test`：25 个测试通过（含新增 `returnsMatchCandidatesAndRejectsUnknownPost`）。
+- AI 服务 `.venv\Scripts\python.exe -m pytest -q`：8 个测试通过。
+- 前端 `npm run typecheck`：通过。
+- 实机验证：`GET /api/v1/posts/LF-20261111-XS5X/matches` 返回 1~3 条候选；`http://localhost:5173/ai/health` 经 Vite 代理返回 `ok / v0.2.0`，首页服务状态卡中 AI 服务显示「服务正常，模型未加载」。
+- 页面截图：首页列表封面、详情抽屉（图集 + 候选匹配 + 认领入口）、认领管理、通知中心均正常；控制台仅剩未登录时的 401（预期）。
+
+### 环境备注
+
+- MySQL 容器的 3307 端口落在 Windows 保留端口段（3307–3406），容器无法绑定；已改写 `deploy/.env` 的 `MYSQL_PORT=13306` 并重建容器，后端启动需带 `MYSQL_PORT=13306`。
+- Vite 在 IPv6 上监听（`::1`），浏览器与本机脚本都要用 `http://localhost:5173`，`127.0.0.1` 会连不上。

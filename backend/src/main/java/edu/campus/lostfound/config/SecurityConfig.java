@@ -48,6 +48,7 @@ public class SecurityConfig {
                                 "/api/v1/locations",
                                 "/api/v1/posts",
                                 "/api/v1/posts/**",
+                                "/api/v1/files/**",
                                 "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/sms-code",
@@ -55,6 +56,7 @@ public class SecurityConfig {
                                 "/api/v1/auth/register",
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())

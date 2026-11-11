@@ -20,6 +20,18 @@ const router = createRouter({
       meta: { title: '个人中心' },
     },
     {
+      path: '/claims',
+      name: 'claims',
+      component: () => import('@/views/ClaimsView.vue'),
+      meta: { title: '认领处理', requiresAuth: true },
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: () => import('@/views/NotificationsView.vue'),
+      meta: { title: '通知', requiresAuth: true },
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminView.vue'),
@@ -36,7 +48,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  if (!to.meta.requiresAdmin) {
+  if (!to.meta.requiresAdmin && !to.meta.requiresAuth) {
     return true
   }
   const auth = useAuthStore()
@@ -45,7 +57,7 @@ router.beforeEach(async (to) => {
     auth.openLogin()
     return { path: '/' }
   }
-  if (auth.user.role !== 'ADMIN') {
+  if (to.meta.requiresAdmin && auth.user.role !== 'ADMIN') {
     return { path: '/' }
   }
   return true

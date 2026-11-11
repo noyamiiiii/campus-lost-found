@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { LoaderCircle, Send } from 'lucide-vue-next'
-import {
-  createPost,
-  fetchCategories,
-  fetchLocations,
-  toRequestMessage,
-  type Category,
-} from '@/api/posts'
+import ImageUploader from './ImageUploader.vue'
+import { createPost, fetchCategories, fetchLocations, toRequestMessage, type Category } from '@/api/posts'
+import type { UploadedFile } from '@/api/files'
 import { useFeedStore } from '@/stores/feed'
 import type { CampusLocation, ContactMode, ItemKind } from '@/types/item'
 
@@ -26,6 +22,7 @@ const locations = ref<CampusLocation[]>([])
 const optionsLoaded = ref(false)
 const submitting = ref(false)
 const error = ref('')
+const images = ref<UploadedFile[]>([])
 
 const form = reactive({
   type: 'FOUND' as ItemKind,
@@ -65,6 +62,7 @@ function resetForm(): void {
   form.color = ''
   form.contactMode = 'IN_APP_ONLY'
   form.eventTime = new Date()
+  images.value = []
   error.value = ''
 }
 
@@ -107,6 +105,7 @@ async function submit(): Promise<void> {
       brand: form.brand.trim() || null,
       color: form.color.trim() || null,
       contactMode: form.contactMode,
+      imageIds: images.value.map((image) => image.id),
     })
     const title = form.title.trim()
     visible.value = false
@@ -203,6 +202,11 @@ watch(
           placeholder="写清颜色、品牌、外观特征和当时的情况，方便失主或拾取者核对"
         />
       </label>
+
+      <div class="form-field">
+        <span>图片（选填，最多 6 张）</span>
+        <ImageUploader v-model="images" :max="6" hint="拍一张清晰的照片，更容易被认领" />
+      </div>
 
       <div class="publish-row">
         <label class="form-field">

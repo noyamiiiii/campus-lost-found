@@ -6,17 +6,24 @@ import edu.campus.lostfound.catalog.CampusLocationMapper;
 import edu.campus.lostfound.catalog.CategoryEntity;
 import edu.campus.lostfound.catalog.CategoryMapper;
 import edu.campus.lostfound.common.ApiException;
+import edu.campus.lostfound.file.FileObjectEntity;
+import edu.campus.lostfound.file.FileService;
 import edu.campus.lostfound.post.PostCursorCodec.Cursor;
 import edu.campus.lostfound.post.PostDtos.PostCreateRequest;
 import edu.campus.lostfound.post.PostDtos.PostDetail;
+import edu.campus.lostfound.post.PostDtos.PostImage;
 import edu.campus.lostfound.post.PostDtos.PostPage;
 import edu.campus.lostfound.post.PostDtos.PostSummary;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import org.springframework.context.annotation.Profile;
@@ -35,25 +42,32 @@ public class PostService {
     private static final String PUBLIC_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private static final int EXPIRE_DAYS = 30;
     private static final int MINE_LIMIT = 50;
+    private static final int MAX_IMAGES = 6;
 
     private final PostQueryMapper postQueryMapper;
     private final PostCursorCodec cursorCodec;
     private final ItemPostMapper itemPostMapper;
+    private final ItemImageMapper itemImageMapper;
     private final CategoryMapper categoryMapper;
     private final CampusLocationMapper locationMapper;
+    private final FileService fileService;
 
     public PostService(
             PostQueryMapper postQueryMapper,
             PostCursorCodec cursorCodec,
             ItemPostMapper itemPostMapper,
+            ItemImageMapper itemImageMapper,
             CategoryMapper categoryMapper,
-            CampusLocationMapper locationMapper
+            CampusLocationMapper locationMapper,
+            FileService fileService
     ) {
         this.postQueryMapper = postQueryMapper;
         this.cursorCodec = cursorCodec;
         this.itemPostMapper = itemPostMapper;
+        this.itemImageMapper = itemImageMapper;
         this.categoryMapper = categoryMapper;
         this.locationMapper = locationMapper;
+        this.fileService = fileService;
     }
 
     @Transactional(readOnly = true)
@@ -87,7 +101,11 @@ public class PostService {
                 ? cursorCodec.encode(pageRows.get(pageRows.size() - 1))
                 : null;
 
-        return new PostPage(pageRows.stream().map(this::toSummary).toList(), nextCursor, hasMore);
+        Map<Long, List<PostImage>> imageMap = loadImages(pageRows);
+        return new PostPage(
+                pageRows.stream().map(row -> toSummary(row, imageMap.getOrDefault(row.getId(), List.of()))).toList(),
+                nextCursor,
+                hasMore);
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +114,7 @@ public class PostService {
         if (row == null) {
             throw ApiException.notFound("帖子不存在或不可见");
         }
+        List<PostImage> images = loadImages(List.of(row)).getOrDefault(row.getId(), List.of());
         return new PostDetail(
                 row.getPublicId(),
                 row.getType(),
@@ -113,13 +132,16 @@ public class PostService {
                 row.getContactMode(),
                 row.getMatchCount(),
                 publisherName(row),
-                toOffsetDateTime(row.getExpireAt()));
+                toOffsetDateTime(row.getExpireAt()),
+                images);
     }
 
     @Transactional(readOnly = true)
     public List<PostSummary> listMine(Long userId) {
-        return postQueryMapper.findMine(userId, MINE_LIMIT).stream()
-                .map(this::toSummary)
+        List<PostRow> rows = postQueryMapper.findMine(userId, MINE_LIMIT);
+        Map<Long, List<PostImage>> imageMap = loadImages(rows);
+        return rows.stream()
+                .map(row -> toSummary(row, imageMap.getOrDefault(row.getId(), List.of())))
                 .toList();
     }
 
@@ -134,6 +156,7 @@ public class PostService {
         }
         Long locationId = normalizeLocation(request.locationId());
         String contactMode = normalizeContactMode(request.contactMode());
+        List<FileObjectEntity> imageFiles = resolveImages(userId, request.imageIds());
 
         LocalDateTime now = LocalDateTime.now(CAMPUS_ZONE);
         LocalDateTime eventTime = request.eventTime()
@@ -169,7 +192,56 @@ public class PostService {
         entity.setVersion(0);
 
         String publicId = insertWithUniqueId(entity, now);
+        attachImages(entity.getId(), imageFiles);
         return get(publicId);
+    }
+
+    private void attachImages(Long postId, List<FileObjectEntity> files) {
+        for (int index = 0; index < files.size(); index++) {
+            FileObjectEntity file = files.get(index);
+            ItemImageEntity image = new ItemImageEntity();
+            image.setPostId(postId);
+            image.setFileId(file.getId());
+            image.setWidth(file.getWidth());
+            image.setHeight(file.getHeight());
+            image.setIsPrimary(index == 0);
+            itemImageMapper.insert(image);
+        }
+    }
+
+    private List<FileObjectEntity> resolveImages(Long userId, List<Long> imageIds) {
+        if (imageIds == null || imageIds.isEmpty()) {
+            return List.of();
+        }
+        List<Long> unique = new ArrayList<>(new LinkedHashSet<>(imageIds));
+        if (unique.size() > MAX_IMAGES) {
+            throw ApiException.badRequest("最多上传 " + MAX_IMAGES + " 张图片");
+        }
+        List<FileObjectEntity> files = new ArrayList<>(unique.size());
+        for (Long imageId : unique) {
+            if (imageId == null) {
+                throw ApiException.badRequest("图片编号不能为空");
+            }
+            files.add(fileService.requireOwnedImage(userId, imageId));
+        }
+        return files;
+    }
+
+    private Map<Long, List<PostImage>> loadImages(List<PostRow> rows) {
+        if (rows.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> ids = rows.stream().map(PostRow::getId).toList();
+        Map<Long, List<PostImage>> result = new HashMap<>();
+        for (PostImageRow image : postQueryMapper.findImagesByPostIds(ids)) {
+            result.computeIfAbsent(image.getPostId(), key -> new ArrayList<>())
+                    .add(new PostImage(
+                            fileService.urlOfKey(image.getStorageKey()),
+                            image.getWidth(),
+                            image.getHeight(),
+                            Boolean.TRUE.equals(image.getIsPrimary())));
+        }
+        return result;
     }
 
     private String insertWithUniqueId(ItemPostEntity entity, LocalDateTime now) {
@@ -232,7 +304,7 @@ public class PostService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private PostSummary toSummary(PostRow row) {
+    private PostSummary toSummary(PostRow row, List<PostImage> images) {
         return new PostSummary(
                 row.getPublicId(),
                 row.getType(),
@@ -245,7 +317,8 @@ public class PostService {
                 row.getStatus(),
                 row.getAuditStatus(),
                 row.getMatchCount(),
-                publisherName(row));
+                publisherName(row),
+                images);
     }
 
     private String normalizeType(String type) {

@@ -11,6 +11,9 @@ public final class PostDtos {
     private PostDtos() {
     }
 
+    public record PostImage(String url, Integer width, Integer height, boolean primary) {
+    }
+
     public record PostSummary(
             String publicId,
             String type,
@@ -23,7 +26,8 @@ public final class PostDtos {
             String status,
             String auditStatus,
             Integer matchCount,
-            String publisherName
+            String publisherName,
+            List<PostImage> images
     ) {
     }
 
@@ -44,11 +48,25 @@ public final class PostDtos {
             String contactMode,
             Integer matchCount,
             String publisherName,
-            OffsetDateTime expireAt
+            OffsetDateTime expireAt,
+            List<PostImage> images
     ) {
     }
 
     public record PostPage(List<PostSummary> list, String nextCursor, boolean hasMore) {
+    }
+
+    /** 候选匹配：score 越大越像，reasons 说明为什么被判定为候选。 */
+    public record PostMatch(
+            String publicId,
+            String title,
+            String type,
+            String categoryName,
+            String locationName,
+            String status,
+            int score,
+            List<String> reasons
+    ) {
     }
 
     public record PostCreateRequest(
@@ -71,7 +89,9 @@ public final class PostDtos {
             String brand,
             @Size(max = 16, message = "颜色不能超过 16 个字符")
             String color,
-            String contactMode
+            String contactMode,
+            @Size(max = 6, message = "最多上传 6 张图片")
+            List<Long> imageIds
     ) {
     }
 }

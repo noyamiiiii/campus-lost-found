@@ -59,6 +59,22 @@ export async function fetchPostDetail(publicId: string): Promise<ItemDetail> {
   return unwrap(data)
 }
 
+export interface PostMatch {
+  publicId: string
+  title: string
+  type: ItemKind
+  categoryName: string
+  locationName: string | null
+  status: string
+  score: number
+  reasons: string[]
+}
+
+export async function fetchPostMatches(publicId: string): Promise<PostMatch[]> {
+  const { data } = await http.get<ApiEnvelope<PostMatch[]>>(`/api/v1/posts/${encodeURIComponent(publicId)}/matches`)
+  return unwrap(data)
+}
+
 export async function fetchLocations(): Promise<CampusLocation[]> {
   const { data } = await http.get<ApiEnvelope<{ items: CampusLocation[] }>>('/api/v1/locations')
   return unwrap(data).items

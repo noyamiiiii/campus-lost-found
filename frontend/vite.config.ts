@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
 const apiTarget = process.env.VITE_API_TARGET ?? 'http://localhost:8081'
-const aiTarget = process.env.VITE_AI_TARGET ?? 'http://localhost:8000'
+const aiTarget = process.env.VITE_AI_TARGET ?? 'http://127.0.0.1:8000'
 
 export default defineConfig({
   plugins: [vue()],
@@ -16,6 +16,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
+        target: apiTarget,
+        changeOrigin: true,
+      },
+      '/files': {
         target: apiTarget,
         changeOrigin: true,
       },

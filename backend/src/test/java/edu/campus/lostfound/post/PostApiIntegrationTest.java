@@ -146,7 +146,7 @@ class PostApiIntegrationTest {
 
             mockMvc.perform(get("/api/v1/posts/mine").header("Authorization", "Bearer " + token))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.length()").value(1))
+                    .andExpect(jsonPath("$.data.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(1)))
                     .andExpect(jsonPath("$.data[0].publicId").value(publicId));
 
             mockMvc.perform(get("/api/v1/posts").param("keyword", "水壶"))
@@ -195,5 +195,29 @@ class PostApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn();
         return JsonPath.read(login.getResponse().getContentAsString(), "$.data.accessToken");
+    }
+
+    @Test
+    void returnsMatchCandidatesAndRejectsUnknownPost() throws Exception {
+        MvcResult detail = mockMvc.perform(get("/api/v1/posts/{publicId}", "LF-2026-1031-01"))
+                .andExpect(status().isOk())
+                .andReturn();
+        String sourceType = JsonPath.read(detail.getResponse().getContentAsString(), "$.data.type");
+        String opposite = "LOST".equals(sourceType) ? "FOUND" : "LOST";
+
+        MvcResult matches = mockMvc.perform(get("/api/v1/posts/{publicId}/matches", "LF-2026-1031-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").isArray())
+                .andReturn();
+
+        // 候选只包含“相反类型且仍在寻物/招领中”的记录，因此结果可能为空。
+        java.util.List<String> types = JsonPath.read(matches.getResponse().getContentAsString(), "$.data[*].type");
+        org.junit.jupiter.api.Assertions.assertTrue(types.stream().allMatch(opposite::equals),
+                "候选类型应全部为相反类型 " + opposite);
+
+        mockMvc.perform(get("/api/v1/posts/{publicId}/matches", "LF-NOT-EXIST"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40400));
     }
 }

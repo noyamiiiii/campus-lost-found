@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="edu.campus.lostfound.claim.ClaimQueryMapper">
+
+    <sql id="claimColumns">
+        c.id            AS id,
+        c.public_id     AS publicId,
+        c.post_id       AS postId,
+        p.public_id     AS postPublicId,
+        p.title         AS postTitle,
+        p.status        AS postStatus,
+        c.applicant_id  AS applicantId,
+        c.status        AS status,
+        c.message       AS message,
+        c.contact       AS contact,
+        c.evidence_file_id AS evidenceFileId,
+        c.confirmed_at  AS confirmedAt,
+        c.completed_at  AS completedAt,
+        c.canceled_at   AS canceledAt,
+        c.created_at    AS createdAt
+    </sql>
+
+    <select id="findMine" resultType="edu.campus.lostfound.claim.ClaimRow">
+        SELECT <include refid="claimColumns"/>,
+               p.user_id      AS ownerId,
+               o.public_id    AS ownerPublicId,
+               o.real_name    AS ownerName,
+               a.public_id    AS applicantPublicId,
+               a.real_name    AS applicantName
+        FROM claim c
+        JOIN item_post p ON p.id = c.post_id AND p.deleted_at IS NULL
+        JOIN sys_user o ON o.id = p.user_id
+        JOIN sys_user a ON a.id = c.applicant_id
+        WHERE c.applicant_id = #{userId}
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT 100
+    </select>
+
+    <select id="findReceived" resultType="edu.campus.lostfound.claim.ClaimRow">
+        SELECT <include refid="claimColumns"/>,
+               p.user_id      AS ownerId,
+               o.public_id    AS ownerPublicId,
+               o.real_name    AS ownerName,
+               a.public_id    AS applicantPublicId,
+               a.real_name    AS applicantName
+        FROM claim c
+        JOIN item_post p ON p.id = c.post_id AND p.deleted_at IS NULL
+        JOIN sys_user o ON o.id = p.user_id
+        JOIN sys_user a ON a.id = c.applicant_id
+        WHERE p.user_id = #{ownerId}
+        ORDER BY c.created_at DESC, c.id DESC
+        LIMIT 100
+    </select>
+
+    <select id="findOne" resultType="edu.campus.lostfound.claim.ClaimRow">
+        SELECT <include refid="claimColumns"/>,
+               p.user_id      AS ownerId,
+               o.public_id    AS ownerPublicId,
+               o.real_name    AS ownerName,
+               a.public_id    AS applicantPublicId,
+               a.real_name    AS applicantName
+        FROM claim c
+        JOIN item_post p ON p.id = c.post_id AND p.deleted_at IS NULL
+        JOIN sys_user o ON o.id = p.user_id
+        JOIN sys_user a ON a.id = c.applicant_id
+        WHERE c.id = #{claimId}
+    </select>
+</mapper>

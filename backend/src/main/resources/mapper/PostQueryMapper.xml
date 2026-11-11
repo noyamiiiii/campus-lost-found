@@ -81,4 +81,33 @@
         ORDER BY p.created_at DESC, p.id DESC
         LIMIT #{limit}
     </select>
+
+    <select id="findMatchCandidates" resultType="edu.campus.lostfound.post.PostRow">
+        SELECT
+        <include refid="publicPostColumns"/>
+        <include refid="publicPostJoins"/>
+        WHERE <include refid="publicPostPredicate"/>
+          AND p.type = #{type}
+          AND p.status IN ('ACTIVE', 'CLAIMING')
+        <if test="excludeId != null">
+          AND p.id &lt;&gt; #{excludeId}
+        </if>
+        ORDER BY p.created_at DESC, p.id DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="findImagesByPostIds" resultType="edu.campus.lostfound.post.PostImageRow">
+        SELECT i.post_id,
+               f.storage_key,
+               i.width,
+               i.height,
+               i.is_primary
+        FROM item_image i
+        INNER JOIN file_object f ON f.id = i.file_id
+        WHERE i.post_id IN
+        <foreach collection="postIds" item="postId" open="(" separator="," close=")">
+            #{postId}
+        </foreach>
+        ORDER BY i.post_id ASC, i.is_primary DESC, i.id ASC
+    </select>
 </mapper>

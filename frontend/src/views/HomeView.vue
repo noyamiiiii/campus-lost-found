@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { AlertCircle, ChevronDown, LoaderCircle, Search } from 'lucide-vue-next'
 import ItemCard from '@/components/ItemCard.vue'
+import ClaimDialog from '@/components/ClaimDialog.vue'
 import ServiceStatusPanel from '@/components/ServiceStatusPanel.vue'
-import { fetchCategories, fetchPostDetail, fetchPosts, toRequestMessage, type Category } from '@/api/posts'
+import { fetchCategories, fetchPostDetail, fetchPostMatches, fetchPosts, toRequestMessage, type Category, type PostMatch } from '@/api/posts'
+import { useAuthStore } from '@/stores/auth'
 import { useFeedStore } from '@/stores/feed'
 import {
   contactModeLabels,
@@ -19,6 +22,7 @@ import {
 
 const route = useRoute()
 const feed = useFeedStore()
+const auth = useAuthStore()
 
 const keyword = ref('')
 const categoryId = ref(0)
@@ -80,6 +84,45 @@ const detailLocation = computed(() => {
   }
   return selectedSummary.value?.locationName || '地点待补充'
 })
+
+const detailImages = computed(() => {
+  const images = selectedDetail.value?.images ?? selectedSummary.value?.images ?? []
+  return images.map((image) => image.url)
+})
+
+const matches = ref<PostMatch[]>([])
+const matchesLoading = ref(false)
+
+// 已认领/已归还的记录不再允许重复发起认领
+const canClaim = computed(() => {
+  const status = selectedSummary.value?.status
+  return status === 'ACTIVE' || status === 'CLAIMING'
+})
+
+const claimOpen = ref(false)
+const claimTarget = computed(() => {
+  if (!selectedSummary.value) {
+    return null
+  }
+  return {
+    publicId: selectedSummary.value.publicId,
+    title: selectedSummary.value.title,
+    publisherName: selectedSummary.value.publisherName,
+  }
+})
+
+function startClaim(): void {
+  if (!auth.user) {
+    auth.openLogin()
+    return
+  }
+  claimOpen.value = true
+}
+
+function onClaimSubmitted(): void {
+  ElMessage.success('已提交认领申请，后续进展会出现在通知里')
+  void reload()
+}
 
 async function loadCategories(): Promise<void> {
   try {
@@ -166,6 +209,8 @@ async function loadDetail(publicId: string): Promise<void> {
   const request = ++detailRequest
   detailLoading.value = true
   detailError.value = ''
+  matches.value = []
+  matchesLoading.value = true
   try {
     const detail = await fetchPostDetail(publicId)
     if (request === detailRequest) {
@@ -178,6 +223,22 @@ async function loadDetail(publicId: string): Promise<void> {
   } finally {
     if (request === detailRequest) {
       detailLoading.value = false
+    }
+  }
+
+  try {
+    // 候选匹配失败不影响详情展示，静默降级为“暂无候选”。
+    const list = await fetchPostMatches(publicId)
+    if (request === detailRequest) {
+      matches.value = list
+    }
+  } catch {
+    if (request === detailRequest) {
+      matches.value = []
+    }
+  } finally {
+    if (request === detailRequest) {
+      matchesLoading.value = false
     }
   }
 }
@@ -322,6 +383,10 @@ onBeforeUnmount(() => {
         <h2 class="detail__title">{{ selectedSummary.title }}</h2>
         <p class="detail__desc">{{ selectedSummary.description }}</p>
 
+        <div v-if="detailImages.length" class="detail__gallery">
+          <img v-for="(url, index) in detailImages" :key="url" :src="url" :alt="`${selectedSummary.title} 图片 ${index + 1}`" />
+        </div>
+
         <el-skeleton v-if="detailLoading" :rows="5" animated />
 
         <div v-else-if="detailError" class="detail-state" role="alert">
@@ -344,11 +409,41 @@ onBeforeUnmount(() => {
           <div><dt>记录编号</dt><dd>{{ selectedSummary.publicId }}</dd></div>
         </dl>
 
+        <div v-if="!detailLoading" class="detail__matches">
+          <div class="detail__matches-head">
+            <h3>可能的匹配</h3>
+            <el-tag v-if="!matchesLoading && matches.length" size="small" type="success">{{ matches.length }} 条候选</el-tag>
+          </div>
+          <p v-if="matchesLoading" class="detail__matches-hint">正在检索相反类型与同类别记录…</p>
+          <p v-else-if="!matches.length" class="detail__matches-hint">
+            暂时没有相似记录。发布后系统会在匹配到候选时通过站内通知提醒你。
+          </p>
+          <ul v-else class="detail__matches-list">
+            <li v-for="match in matches" :key="match.publicId">
+              <div class="detail__match-main">
+                <el-tag size="small" :type="match.type === 'LOST' ? 'warning' : 'success'" effect="plain">
+                  {{ match.type === 'LOST' ? '寻物' : '招领' }}
+                </el-tag>
+                <span class="detail__match-title">{{ match.title }}</span>
+                <span class="detail__match-score">相似度 {{ match.score }}</span>
+              </div>
+              <p class="detail__match-reasons">{{ match.reasons.join(' · ') }}</p>
+            </li>
+          </ul>
+        </div>
+
         <p v-if="!detailLoading && !detailError" class="detail__note">
-          认领与站内沟通将在后续迭代开放。当前请先核对物品特征，并留意发布者所在服务点。
+          {{ canClaim ? '如果这是你丢失的物品，可以发起认领：写清只有失主知道的细节，发布者确认后线下交接。' : '该记录已完成认领或已关闭，如需协助请联系发布者所在服务点。' }}
         </p>
-        <el-button type="primary" class="detail__action" @click="detailOpen = false">关闭</el-button>
+        <div class="detail__actions">
+          <el-button v-if="canClaim" type="primary" class="detail__action" @click="startClaim">
+            {{ auth.user ? '我要认领' : '登录后认领' }}
+          </el-button>
+          <el-button class="detail__action" @click="detailOpen = false">关闭</el-button>
+        </div>
       </div>
     </el-drawer>
+
+    <ClaimDialog v-model="claimOpen" :post="claimTarget" @submitted="onClaimSubmitted" />
   </div>
 </template>

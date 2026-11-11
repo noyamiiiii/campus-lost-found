@@ -137,8 +137,22 @@ docker compose -f deploy\docker-compose.dev.yml ps
 | `GET /api/v1/locations` | 启用的校园地点，发帖时选择 |
 | `GET /api/v1/posts` | 公开帖子游标分页、类型/分类/关键词筛选 |
 | `GET /api/v1/posts/{publicId}` | 公开帖子详情 |
-| `POST /api/v1/posts` | 发布寻物/招领（需 Bearer 令牌） |
+| `GET /api/v1/posts/{publicId}/matches` | 候选匹配（相反类型、按类别/地点/描述重合打分，最多 5 条） |
+| `POST /api/v1/posts` | 发布寻物/招领（需 Bearer 令牌），可带 `imageIds` 最多 6 张 |
 | `GET /api/v1/posts/mine` | 自己发布的帖子（需 Bearer 令牌） |
+| `POST /api/v1/files` | 上传图片（multipart 字段 `file`，≤5 MB，JPEG/PNG/GIF/WebP） |
+| `GET /files/**` | 本地存储模式下读取已上传图片 |
+| `POST /api/v1/posts/{publicId}/claims` | 发起认领（归属说明必填，可附佐证图） |
+| `GET /api/v1/claims/mine` | 我发起的认领 |
+| `GET /api/v1/claims/received` | 我收到的认领 |
+| `POST /api/v1/claims/{publicId}/confirm` | 发布者同意认领 |
+| `POST /api/v1/claims/{publicId}/reject` | 发布者驳回 |
+| `POST /api/v1/claims/{publicId}/reopen` | 申请人重新提交（仅驳回后） |
+| `POST /api/v1/claims/{publicId}/cancel` | 申请人撤回 |
+| `POST /api/v1/claims/{publicId}/complete` | 交接完成核销 |
+| `GET /api/v1/notifications` | 站内通知列表 |
+| `GET /api/v1/notifications/unread-count` | 未读数 |
+| `POST /api/v1/notifications/read-all` | 全部标记已读 |
 | `POST /api/v1/auth/sms-code` | 发送注册/登录验证码（本地固定为 `123456`） |
 | `POST /api/v1/auth/register` | 学号 + 手机号 + 验证码注册，成功即返回登录会话 |
 | `POST /api/v1/auth/login` | 已注册账号登录，返回访问令牌并写入刷新令牌 Cookie |
@@ -150,9 +164,26 @@ docker compose -f deploy\docker-compose.dev.yml ps
 | `GET /api/v1/admin/users` | 账号分页查询（需 ADMIN 角色） |
 | `PATCH /api/v1/admin/users/{publicId}/status` | 封禁/解封账号（需 ADMIN 角色） |
 | `GET /health` | AI 服务健康检查 |
+| `POST /similar` | 文本候选匹配（返回 score 与共享词元） |
+| `POST /similar/pair` | 两条文本的相似度 |
+| `POST /tags` | 关键词抽取 |
 | `GET /actuator/health` | Spring Boot Actuator |
 
-前端开发服务器把 `/api` 代理到 `8081`、`/ai` 代理到 `8000`，因此浏览器端不涉及跨域配置。
+前端开发服务器把 `/api` 代理到 `8081`、`/ai` 代理到 `8000`、`/files` 代理到 `8081`（本地图片），因此浏览器端不涉及跨域配置。
+
+### 图片存储
+
+`app.storage.provider` 决定图片写到哪里，默认 `local`：图片保存到 `backend/data/files`，由后端把 `/files/**` 映射成静态资源，开发机不必启动 Docker。要改用 MinIO / 兼容 S3 的对象存储时，把 `deploy/.env`（或启动时环境变量）设成：
+
+| 环境变量 | 说明 |
+| --- | --- |
+| `STORAGE_PROVIDER=s3` | 切换到对象存储实现 |
+| `STORAGE_S3_ENDPOINT` | 例如 `http://127.0.0.1:9000` |
+| `STORAGE_S3_BUCKET` | 桶名，默认 `lostfound`（需事先创建） |
+| `STORAGE_S3_ACCESS_KEY` / `STORAGE_S3_SECRET_KEY` | 与 `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` 对应 |
+| `STORAGE_S3_PUBLIC_BASE_URL` | 图片可被浏览器访问的地址，例如 `http://127.0.0.1:9000/lostfound` |
+
+对象存储不可用时后端仍能启动，图片上传会返回 `503 / 50301`，其他接口不受影响。
 
 本地演示账号：学号 `20260001`，手机号 `13800000001`，固定验证码 `123456`。验证码需要先点击“获取验证码”才会生成并自动填入，有效期为 5 分钟；改了学号或手机号要重新获取。新账号请在登录弹窗中切换到“注册”，注册成功后会自动登录并引导完善姓名与院系。
 
@@ -216,6 +247,10 @@ $env:VITE_API_TARGET = "http://localhost:8091"
 - [x] 独立注册入口、学号/手机号重复校验与注册后自动登录
 - [x] 个人资料读取与修改，登录弹窗、账号菜单和个人中心页面
 - [x] Compose 文件可解析（`docker compose config`）
+- [x] 图片上传（本地磁盘 / MinIO 两种实现）与发帖图集、列表封面、详情图集
+- [x] 认领闭环：发起、驳回、重新提交、撤回、确认、交接核销，帖子状态随之流转
+- [x] 站内通知：认领各环节落库，顶栏未读角标与通知中心
+- [x] 后端集成测试 24 个用例（认证、帖子、认领、文件、管理端、健康检查）
 - [ ] 三位成员各自电脑按 README 跑通（需团队确认）
 - [ ] 首次提交与分支约定落地（需团队确认）
 

@@ -22,4 +22,12 @@ public interface PostQueryMapper {
     PostRow findByPublicId(@Param("publicId") String publicId);
 
     List<PostRow> findMine(@Param("userId") Long userId, @Param("limit") int limit);
+
+    List<PostRow> findMatchCandidates(
+            @Param("type") String type,
+            @Param("excludeId") Long excludeId,
+            @Param("limit") int limit
+    );
+
+    List<PostImageRow> findImagesByPostIds(@Param("postIds") List<Long> postIds);
 }

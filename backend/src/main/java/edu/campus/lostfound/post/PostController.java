@@ -4,6 +4,7 @@ import edu.campus.lostfound.auth.AuthenticatedUser;
 import edu.campus.lostfound.common.ApiResponse;
 import edu.campus.lostfound.post.PostDtos.PostCreateRequest;
 import edu.campus.lostfound.post.PostDtos.PostDetail;
+import edu.campus.lostfound.post.PostDtos.PostMatch;
 import edu.campus.lostfound.post.PostDtos.PostPage;
 import edu.campus.lostfound.post.PostDtos.PostSummary;
 import jakarta.validation.Valid;
@@ -24,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class PostController {
 
     private final PostService postService;
+    private final PostMatchService postMatchService;
 
-    public PostController(PostService postService) {
+    public PostController(PostService postService, PostMatchService postMatchService) {
         this.postService = postService;
+        this.postMatchService = postMatchService;
     }
 
     @GetMapping
@@ -43,6 +46,11 @@ public class PostController {
     @GetMapping("/{publicId}")
     public ApiResponse<PostDetail> get(@PathVariable String publicId) {
         return ApiResponse.ok(postService.get(publicId));
+    }
+
+    @GetMapping("/{publicId}/matches")
+    public ApiResponse<List<PostMatch>> matches(@PathVariable String publicId) {
+        return ApiResponse.ok(postMatchService.findMatches(publicId));
     }
 
     @GetMapping("/mine")

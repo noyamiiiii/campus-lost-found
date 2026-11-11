@@ -12,6 +12,13 @@ export type ItemStatus =
 
 export type ContactMode = 'PUBLIC' | 'AFTER_CLAIM' | 'IN_APP_ONLY'
 
+export interface PostImage {
+  url: string
+  width: number | null
+  height: number | null
+  primary: boolean
+}
+
 export interface ItemSummary {
   publicId: string
   type: ItemKind
@@ -25,6 +32,7 @@ export interface ItemSummary {
   auditStatus: string
   matchCount: number
   publisherName: string
+  images: PostImage[]
 }
 
 export interface ItemDetail extends ItemSummary {
@@ -52,6 +60,7 @@ export interface PostCreateInput {
   brand: string | null
   color: string | null
   contactMode: ContactMode
+  imageIds: number[]
 }
 
 export interface CampusLocation {

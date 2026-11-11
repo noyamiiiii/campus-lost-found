@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
   title: Campus Lost & Found API
-  version: 0.2.0
+  version: 0.3.0
   description: |
-    当前包含健康检查、物品分类、公开帖子列表与详情，以及本地演示验证码注册/登录、JWT 与个人资料。
+    健康检查、分类与地点、公开帖子列表与详情、本地演示验证码注册/登录、JWT 与个人资料、管理员接口，
+    以及图片上传（file）、认领闭环（claim）与站内通知（notification）。
     所有业务响应统一返回 code、message、data、traceId，并通过 X-Request-Id 传递请求追踪编号。
     后续接口继续按“先契约、后实现、再联调”的顺序追加。
 servers:
@@ -345,6 +346,33 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/v1/posts/{publicId}/matches:
+    get:
+      operationId: listPostMatches
+      summary: 查询候选匹配记录
+      description: 返回相反类型（寻物对招领）、仍在 ACTIVE/CLAIMING 状态的候选，按 score 降序最多 5 条。
+      tags: [posts]
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 候选匹配列表
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponsePostMatchList"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/locations:
     get:
       operationId: listLocations
@@ -378,11 +406,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
-          description: 当前账号不是管理员
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponseError"
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -431,11 +455,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
-          description: 当前账号不是管理员
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponseError"
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -479,11 +499,7 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
-          description: 当前账号不是管理员或不允许操作该账号
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponseError"
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -514,6 +530,431 @@ paths:
               schema:
                 $ref: "#/components/schemas/ApiResponseError"
 
+  /api/v1/files:
+    post:
+      operationId: uploadFile
+      summary: 上传图片
+      description: |
+        以 multipart/form-data 上传单张图片，服务端按文件头识别 JPEG/PNG/GIF/WebP，单文件不超过 5 MB。
+        返回的 id 用于发帖时的 imageIds 与认领时的 evidenceFileId；url 可直接用于 img 标签。
+      tags: [file]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseFileView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "413":
+          description: 文件超过大小限制（code=41301）
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseError"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/posts/{publicId}/claims:
+    post:
+      operationId: createClaim
+      summary: 发起认领
+      description: 不能认领自己发布的帖子；帖子须为 ACTIVE/CLAIMING 且当前没有进行中的认领，否则返回 409。
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimCreateRequest"
+      responses:
+        "200":
+          description: 已提交认领
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/claims/mine:
+    get:
+      operationId: listMyClaims
+      summary: 我发起的认领
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 认领列表，按创建时间倒序，最多返回 100 条
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/claims/received:
+    get:
+      operationId: listReceivedClaims
+      summary: 别人对我帖子的认领
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 认领列表，按创建时间倒序，最多返回 100 条
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/claims/{publicId}:
+    get:
+      operationId: getClaim
+      summary: 认领详情
+      description: 仅申请人与帖子发布者可查看。
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 认领详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimView"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/claims/{publicId}/confirm:
+    post:
+      operationId: confirmClaim
+      summary: 通过认领（发布者）
+      description: 仅 PENDING 状态可确认；确认后帖子进入 CLAIMING。
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimMessageRequest"
+      responses:
+        "200":
+          description: 更新后的认领
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/claims/{publicId}/reject:
+    post:
+      operationId: rejectClaim
+      summary: 拒绝认领（发布者）
+      description: 仅 PENDING 状态可拒绝；拒绝后申请人可补充说明重新发起。
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimMessageRequest"
+      responses:
+        "200":
+          description: 更新后的认领
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/claims/{publicId}/reopen:
+    post:
+      operationId: reopenClaim
+      summary: 补充说明重新申请（申请人）
+      description: 仅 REJECTED 状态可重新打开，回到 PENDING 等待发布者处理。
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimMessageRequest"
+      responses:
+        "200":
+          description: 更新后的认领
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/claims/{publicId}/cancel:
+    post:
+      operationId: cancelClaim
+      summary: 撤回认领（申请人）
+      description: PENDING/CONFIRMED 可撤回；若帖子因该认领进入 CLAIMING 且无其他确认中的认领，则回到 ACTIVE。
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 更新后的认领
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimView"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/claims/{publicId}/complete:
+    post:
+      operationId: completeClaim
+      summary: 确认归还完成（发布者）
+      description: 仅 CONFIRMED 状态可完成；完成后帖子变为 CLAIMED 并记录归还时间。
+      tags: [claim]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClaimMessageRequest"
+      responses:
+        "200":
+          description: 更新后的认领
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseClaimView"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/notifications:
+    get:
+      operationId: listNotifications
+      summary: 我的通知
+      description: 按创建时间倒序返回最近 50 条，包含已读与未读。
+      tags: [notification]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 通知列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseNotificationList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/notifications/unread-count:
+    get:
+      operationId: getUnreadCount
+      summary: 未读通知数量
+      tags: [notification]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 未读数
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseUnreadCount"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      summary: 标记单条已读
+      tags: [notification]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: 已标记
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /api/v1/notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      summary: 全部标记已读
+      tags: [notification]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 已全部标记
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVoid"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -529,6 +970,15 @@ components:
   responses:
     Unauthorized:
       description: 未登录或访问令牌失效
+      headers:
+        X-Request-Id:
+          $ref: "#/components/headers/RequestId"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiResponseError"
+    Forbidden:
+      description: 已登录但无权访问该资源（code=40300）
       headers:
         X-Request-Id:
           $ref: "#/components/headers/RequestId"
@@ -582,6 +1032,216 @@ components:
           schema:
             $ref: "#/components/schemas/ApiResponseError"
   schemas:
+    PostImage:
+      type: object
+      required: [url, primary]
+      properties:
+        url:
+          type: string
+          description: 可直接用于 img 的地址；本地存储为 /files/{key}
+          examples: ["/files/post/20261111/abc123.jpg"]
+        width:
+          type: [integer, "null"]
+          description: 像素宽；上传时解析并随帖子图片落库，解析失败或历史数据为 null
+        height:
+          type: [integer, "null"]
+          description: 像素高；同上
+        primary:
+          type: boolean
+          description: 是否为封面图
+
+    FileView:
+      type: object
+      required: [id, url, mime, size]
+      properties:
+        id:
+          type: integer
+          format: int64
+        url:
+          type: string
+        mime:
+          type: string
+          enum: [image/jpeg, image/png, image/gif, image/webp]
+        size:
+          type: integer
+          format: int64
+        width:
+          type: [integer, "null"]
+        height:
+          type: [integer, "null"]
+
+    ClaimCreateRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: 归属说明，不能为空；建议写清物品特征、丢失时间等可核验细节（前端引导至少 5 个字）
+        contact:
+          type: [string, "null"]
+          maxLength: 120
+        evidenceFileId:
+          type: [integer, "null"]
+          format: int64
+          description: 佐证图片，需为本账号上传的图片
+
+    ClaimMessageRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          maxLength: 500
+
+    ClaimView:
+      type: object
+      required:
+        [publicId, postPublicId, postTitle, postStatus, applicantPublicId, applicantName, ownerPublicId, ownerName, status, message, createdAt]
+      properties:
+        publicId:
+          type: string
+          examples: ["CL-20261111-A1B2"]
+        postPublicId:
+          type: string
+        postTitle:
+          type: string
+        postStatus:
+          $ref: "#/components/schemas/PostStatus"
+        applicantPublicId:
+          type: string
+        applicantName:
+          type: string
+        ownerPublicId:
+          type: string
+        ownerName:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, REJECTED, HANDOVER_FAILED, COMPLETED, CANCELED, EXPIRED]
+        message:
+          type: string
+        contact:
+          type: [string, "null"]
+        evidenceFileId:
+          type: [integer, "null"]
+          format: int64
+        confirmedAt:
+          type: [string, "null"]
+          format: date-time
+        completedAt:
+          type: [string, "null"]
+          format: date-time
+        canceledAt:
+          type: [string, "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationView:
+      type: object
+      required: [id, category, title, content, read, createdAt]
+      properties:
+        id:
+          type: integer
+          format: int64
+        category:
+          type: string
+          enum: [MATCH, CLAIM, AUDIT, SYSTEM]
+        title:
+          type: string
+        content:
+          type: string
+        refType:
+          type: [string, "null"]
+          enum: [POST, CLAIM, MESSAGE, null]
+        refId:
+          type: [integer, "null"]
+          format: int64
+        read:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    UnreadCountData:
+      type: object
+      required: [count]
+      properties:
+        count:
+          type: integer
+
+    ApiResponseFileView:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/FileView"
+        traceId:
+          type: string
+
+    ApiResponseClaimView:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/ClaimView"
+        traceId:
+          type: string
+
+    ApiResponseClaimList:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClaimView"
+        traceId:
+          type: string
+
+    ApiResponseNotificationList:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/NotificationView"
+        traceId:
+          type: string
+
+    ApiResponseUnreadCount:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: "#/components/schemas/UnreadCountData"
+        traceId:
+          type: string
+
     SendCodeRequest:
       type: object
       required: [studentNo, phone]
@@ -785,6 +1445,10 @@ components:
           type: integer
         publisherName:
           type: string
+        images:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostImage"
 
     PostPageData:
       type: object
@@ -816,6 +1480,53 @@ components:
             expireAt:
               type: [string, "null"]
               format: date-time
+            images:
+              type: array
+              items:
+                $ref: "#/components/schemas/PostImage"
+
+    ApiResponsePostMatchList:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/PostMatch"
+        traceId:
+          type: string
+
+    PostMatch:
+      type: object
+      required: [publicId, title, type, score, reasons]
+      properties:
+        publicId:
+          type: string
+          examples: [LF-20261105-XS5X]
+        title:
+          type: string
+        type:
+          type: string
+          enum: [LOST, FOUND]
+        categoryName:
+          type: [string, "null"]
+        locationName:
+          type: [string, "null"]
+        status:
+          type: string
+        score:
+          type: integer
+          minimum: 0
+        reasons:
+          type: array
+          items:
+            type: string
 
     ApiResponseCategoryList:
       type: object
@@ -955,13 +1666,30 @@ components:
           type: string
           examples: [8f4c2a51cbb84b4f9e2f6b7e09cb4d8a]
 
+    ErrorCode:
+      type: integer
+      description: |
+        业务错误码。0 表示成功，非 0 与 HTTP 状态码一一对应：
+
+        | code | HTTP | 含义 |
+        | --- | --- | --- |
+        | 0 | 200 | 成功 |
+        | 40001 | 400 | 请求参数或请求体不合法（含图片类型/大小校验失败） |
+        | 40100 | 401 | 未登录、令牌缺失或已失效 |
+        | 40300 | 403 | 已登录但无权访问该资源 |
+        | 40400 | 404 | 资源不存在或对当前用户不可见 |
+        | 40900 | 409 | 状态冲突（重复注册、帖子已被认领、认领状态不允许该操作等） |
+        | 41301 | 413 | 上传文件超过 5 MB 上限 |
+        | 42900 | 429 | 请求过于频繁（验证码等接口的限流） |
+        | 50000 | 500 | 服务器内部错误 |
+      examples: [40001, 40100, 40300, 40400, 40900, 41301, 42900, 50000]
+
     ApiResponseError:
       type: object
       required: [code, message, data, traceId]
       properties:
         code:
-          type: integer
-          examples: [50000]
+          $ref: "#/components/schemas/ErrorCode"
         message:
           type: string
         data:
@@ -1011,6 +1739,13 @@ components:
           type: string
           enum: [PUBLIC, AFTER_CLAIM, IN_APP_ONLY]
           default: IN_APP_ONLY
+        imageIds:
+          type: array
+          maxItems: 6
+          description: 先调 POST /api/v1/files 上传，再按顺序传入文件 id
+          items:
+            type: integer
+            format: int64
 
     LocationView:
       type: object

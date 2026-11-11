@@ -10,6 +10,6 @@ def test_health_reports_service_metadata() -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["service"] == "campus-lost-found-ai"
-    assert body["version"] == "0.1.0"
+    assert body["version"] == "0.2.0"
     assert body["model_loaded"] is False
 
