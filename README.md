@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | `frontend` | Vue 3 + TypeScript + Vite | 5173 | 用户端界面，开发期通过 Vite 代理访问后端 |
 | `backend` | Spring Boot 3.5 / Java 21 | 8081 | 业务 API、鉴权、事务 |
-| `ai-service` | FastAPI / Python 3.13 | 8000 | 图像向量与识别（W1 仅有健康检查） |
+| `ai-service` | FastAPI / Python 3.13 | 8000 | 文本相似度、候选匹配打分、关键词抽取 |
 
 开发依赖：MySQL 8.4、Redis 7.4、MinIO。默认单元测试不依赖外部服务；真实业务接口使用 `local` 配置连接这些依赖。
 
@@ -54,6 +54,20 @@ campus-lost-found/
 > IDEA 用户也可以直接用 IDEA 内置 Maven 3.9，不依赖这份全局配置。
 
 ## 启动顺序
+
+### 0. 一条命令跑全栈（Docker，给别人演示时最省事）
+
+```powershell
+cd G:\软件工程\campus-lost-found\deploy
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+浏览器打开 <http://localhost:8088>。镜像里包含 MySQL、后端、AI 服务和一个托管前端的
+nginx，首次构建约 5–10 分钟（Maven/pnpm 依赖），之后启动只要几秒。数据库与上传的图片
+放在 Docker 卷里，`docker compose -f docker-compose.prod.yml down` 不会删数据，
+要连数据一起清掉加 `-v`。
+
+细节（端口、密钥、切 MinIO、只重建某个服务）见 [deploy/DOCKER.md](deploy/DOCKER.md)。
 
 ### 1. 前端（最常用）
 
@@ -103,6 +117,18 @@ python -m uvicorn app.main:app --reload --port 8000
 ```
 
 验证：<http://localhost:8000/health>
+
+它不只是一个健康检查：提供三条接口，且被后端真实调用。
+
+| 接口 | 用途 | 谁在调用 |
+| --- | --- | --- |
+| `POST /similar` | 一段文本对一组候选打分（0~1）| 后端 `AiTextClient` → 帖子详情「可能的匹配」 |
+| `POST /similar/pair` | 两条文本的相似度 | 留给后续「重复发帖合并」 |
+| `POST /tags` | 关键词抽取 | 留给发布表单的标签联想 |
+
+后端通过 `AI_BASE_URL`（默认 `http://127.0.0.1:8000`）、`AI_TIMEOUT_MS`（默认 800）、
+`AI_ENABLED` 控制；**AI 服务没启动也不影响主流程**——匹配会退回本地中文二元组打分，
+只是少了「语义相似 xx%」这条理由。首页服务状态卡里的「AI 服务」探的就是 `/ai/health`。
 
 ### 4. 开发依赖（可选）
 

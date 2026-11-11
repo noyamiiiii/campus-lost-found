@@ -1,0 +1,37 @@
+# 构建上下文是仓库根目录，这里排掉本机产物，否则会把 Windows 上的 node_modules /
+# target / .venv 拷进镜像，盖掉容器里刚装好的依赖（前端曾因此报 vue-tsc 找不到）。
+
+# 依赖目录
+**/node_modules
+**/.venv
+**/venv
+**/__pycache__
+**/.pytest_cache
+
+# 构建产物
+**/target
+**/dist
+**/build
+*.jar
+
+# 运行时数据与本地配置
+**/data
+**/logs
+*.log
+deploy/.env
+deploy/.env.docker
+.local
+minio-data
+
+# 版本控制与编辑器
+.git
+.gitignore
+.idea
+.vscode
+*.iml
+.DS_Store
+Thumbs.db
+
+# 文档与设计稿不参与镜像构建
+docs/diagrams
+*.drawio

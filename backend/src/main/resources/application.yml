@@ -12,7 +12,7 @@ spring:
       max-request-size: ${UPLOAD_MAX_REQUEST_SIZE:32MB}
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:${MYSQL_PORT:3307}/${MYSQL_DATABASE:lostfound}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    url: jdbc:mysql://${MYSQL_HOST:127.0.0.1}:${MYSQL_PORT:3307}/${MYSQL_DATABASE:lostfound}?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
     username: ${MYSQL_USER:lostfound}
     password: ${MYSQL_PASSWORD:clf_dev_pass}
     hikari:
@@ -66,9 +66,16 @@ app:
       secret-key: ${STORAGE_S3_SECRET_KEY:clf_dev_minio}
       bucket: ${STORAGE_S3_BUCKET:lostfound}
       public-base-url: ${STORAGE_S3_PUBLIC_BASE_URL:}
+  ai:
+    # ai-service（Python / FastAPI）地址；不可用时后端自动退回本地词元匹配
+    enabled: ${AI_ENABLED:true}
+    base-url: ${AI_BASE_URL:http://127.0.0.1:8000}
+    timeout-ms: ${AI_TIMEOUT_MS:800}
 
 logging:
   level:
     root: INFO
     edu.campus.lostfound: INFO
+    # 打开可看到 ai-service 调用失败的具体原因（降级为本地打分时不报错）
+    edu.campus.lostfound.ai: ${AI_LOG_LEVEL:INFO}
 

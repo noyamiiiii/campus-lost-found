@@ -457,3 +457,22 @@ Invoke-WebRequest -Uri 'http://localhost:8091/api/v1/auth/sms-code' -Method POST
 
 - MySQL 容器的 3307 端口落在 Windows 保留端口段（3307–3406），容器无法绑定；已改写 `deploy/.env` 的 `MYSQL_PORT=13306` 并重建容器，后端启动需带 `MYSQL_PORT=13306`。
 - Vite 在 IPv6 上监听（`::1`），浏览器与本机脚本都要用 `http://localhost:5173`，`127.0.0.1` 会连不上。
+
+### 2026-11-11 AI 服务接入匹配与 Docker 一键部署
+
+后端新增 `ai/AiTextClient`（`java.net.http`，超时 800ms）：`PostMatchService` 把「标题 + 描述」批量发给 AI 服务的 `POST /similar`，
+拿到 0~1 的相似度后按 1 分 ≈ 0.25 折算进总分，理由里出现「语义相似 xx%」。AI 未启动、超时、返回非 2xx 时静默退回本地中文二元组打分，
+所以单独跑后端仍然可用。
+
+- 配置：`AI_ENABLED` / `AI_BASE_URL`（默认 `http://127.0.0.1:8000`）/ `AI_TIMEOUT_MS`（默认 800）/ `AI_LOG_LEVEL`（排查时可设 DEBUG）
+- 接口约束：`/similar` 的 `top_k` 放宽到 200，因为后端一次提交整批候选（最多 80 条）要拿全量分数
+- 实测：发一条「在操场看台捡到一副黑色入耳式耳机」的招领帖后，查寻物帖的匹配结果里出现
+  `同类别 · 耳机 / 同颜色 · 黑色 / 语义相似 15%`
+
+Docker：新增 `.dockerignore`、`deploy/docker/{backend,frontend,ai}.Dockerfile`、`deploy/docker/nginx.conf`、
+`deploy/docker-compose.prod.yml`、`deploy/.env.docker.example` 与 `deploy/DOCKER.md`，`docker compose -f docker-compose.prod.yml up -d --build`
+一条命令起 mysql + backend + ai + nginx（前端静态站与反向代理）。实测四个容器全部 healthy，健康检查、登录、上传、带图发帖、
+静态图片访问、AI 参与的匹配结果均通过（详见 `deploy/DOCKER.md` 的验证段落）。
+
+踩到的三个坑已写进 `deploy/DOCKER.md` 排查表：pnpm 9 把 `pnpm-workspace.yaml` 当工作区根；缺 `.dockerignore` 导致本机
+`node_modules` 盖掉容器依赖（`vue-tsc` 找不到）；`pom.xml` 的 `../db` 相对路径要求镜像内 pom 在 `/src/backend`。

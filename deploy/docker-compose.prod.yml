@@ -1,0 +1,122 @@
+# 一键在别人电脑上跑起来：mysql + 后端 + AI 服务 + nginx（同时托管前端）
+#
+#   cd deploy
+#   docker compose -f docker-compose.prod.yml up -d --build
+#   → http://localhost:8088
+#
+# 需要 MinIO 的对象存储（不用默认的本地磁盘）时，额外加 --profile s3 并设置
+# STORAGE_PROVIDER=s3、STORAGE_S3_PUBLIC_BASE_URL=http://localhost:8088/files-s3（见 README）。
+
+name: clf
+
+services:
+  mysql:
+    image: mysql:8.4.3
+    container_name: clf-mysql-prod
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${CLF_MYSQL_ROOT_PASSWORD:-clf_dev_root}
+      MYSQL_DATABASE: ${CLF_MYSQL_DATABASE:-lostfound}
+      MYSQL_USER: ${CLF_MYSQL_USER:-lostfound}
+      MYSQL_PASSWORD: ${CLF_MYSQL_PASSWORD:-clf_dev_pass}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+      - --default-time-zone=+08:00
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/docker/backend.Dockerfile
+    image: clf-backend:latest
+    container_name: clf-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+      SPRING_PROFILES_ACTIVE: local
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${CLF_MYSQL_DATABASE:-lostfound}
+      MYSQL_USER: ${CLF_MYSQL_USER:-lostfound}
+      MYSQL_PASSWORD: ${CLF_MYSQL_PASSWORD:-clf_dev_pass}
+      AUTH_JWT_SECRET: ${CLF_JWT_SECRET:-change-this-secret-before-sharing}
+      AUTH_EXPOSE_SMS_CODE: "true"
+      AI_BASE_URL: http://ai:8000
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-local}
+      STORAGE_LOCAL_ROOT: /app/data/files
+      STORAGE_S3_ENDPOINT: http://minio:9000
+      STORAGE_S3_ACCESS_KEY: ${MINIO_ROOT_USER:-clfadmin}
+      STORAGE_S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-clf_dev_minio}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-lostfound}
+      STORAGE_S3_PUBLIC_BASE_URL: ${STORAGE_S3_PUBLIC_BASE_URL:-}
+    volumes:
+      - uploads:/app/data/files
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8081"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 40s
+
+  ai:
+    build:
+      context: ..
+      dockerfile: deploy/docker/ai.Dockerfile
+    image: clf-ai:latest
+    container_name: clf-ai
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/docker/frontend.Dockerfile
+    image: clf-frontend:latest
+    container_name: clf-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+      ai:
+        condition: service_started
+    ports:
+      - "${CLF_HTTP_PORT:-8088}:80"
+
+  # 可选：需要对象存储时启用 —— docker compose -f docker-compose.prod.yml --profile s3 up -d
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    container_name: clf-minio
+    restart: unless-stopped
+    profiles: ["s3"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-clfadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-clf_dev_minio}
+    command: server /data --console-address ":9001"
+    ports:
+      - "${CLF_MINIO_API_PORT:-9000}:9000"
+      - "${CLF_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  mysql-data:
+  uploads:
+  minio-data:

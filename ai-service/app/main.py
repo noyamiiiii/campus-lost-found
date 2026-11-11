@@ -34,7 +34,8 @@ class CandidatePayload(BaseModel):
 class SimilarRequest(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
     candidates: List[CandidatePayload] = Field(default_factory=list, max_length=200)
-    top_k: int = Field(default=5, ge=1, le=20)
+    # 后端会一次提交整批候选（最多 80 条）拿全量分数，因此这里放宽到 200
+    top_k: int = Field(default=5, ge=1, le=200)
 
 
 class SimilarItem(BaseModel):
