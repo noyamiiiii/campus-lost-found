@@ -373,6 +373,43 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /api/v1/posts/{publicId}/similar-images:
+    get:
+      operationId: listSimilarImages
+      summary: 以图搜图
+      description: |
+        用该帖封面（或首张）图片的向量与库内其它帖子的图片向量比对，返回余弦相似度不低于 0.55 的前 N 条。
+        帖子没有图片向量、或 AI 服务未生成 embedding 时返回空数组，不影响详情页其它内容。
+      tags: [posts]
+      parameters:
+        - name: publicId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+      responses:
+        "200":
+          description: 外观相似的帖子
+          headers:
+            X-Request-Id:
+              $ref: "#/components/headers/RequestId"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponseVisualMatchList"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /api/v1/locations:
     get:
       operationId: listLocations
@@ -551,6 +588,14 @@ paths:
                 file:
                   type: string
                   format: binary
+                kind:
+                  type: string
+                  enum: [LOST, FOUND]
+                  description: 可选，图片所属的启事类型；影响生成文案里的表述
+                location:
+                  type: string
+                  maxLength: 120
+                  description: 可选，物品所在地点；影响生成文案里的表述
       responses:
         "200":
           description: 上传成功
@@ -1069,6 +1114,87 @@ components:
           type: [integer, "null"]
         height:
           type: [integer, "null"]
+        ai:
+          $ref: "#/components/schemas/FileAiView"
+
+    FileAiView:
+      type: object
+      description: 图片理解结果；上传时同步调用 AI 服务得到，服务不可用时 status 为 FAILED 且其余字段为空，不影响上传本身。
+      required: [status, degraded]
+      properties:
+        status:
+          type: string
+          enum: [DONE, FAILED, SKIPPED]
+          description: DONE=分析完成；SKIPPED=服务端关闭了 AI；FAILED=调用失败
+        categoryId:
+          type: [integer, "null"]
+          description: 推断的物品分类 id，对应 /categories
+        categoryLabel:
+          type: [string, "null"]
+        confidence:
+          type: number
+          format: double
+        colors:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiColor"
+        labels:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiLabel"
+        sensitive:
+          $ref: "#/components/schemas/AiSensitive"
+        description:
+          type: [string, "null"]
+          description: 生成的描述文案，可直接填入发帖表单
+        title:
+          type: [string, "null"]
+          description: 生成的标题，可作为发帖标题的建议值
+        model:
+          type: [string, "null"]
+        degraded:
+          type: boolean
+          description: 是否走了降级路径（服务不可用或超时）
+
+    AiColor:
+      type: object
+      properties:
+        hex:
+          type: string
+        name:
+          type: string
+          description: 中文颜色名，如「白色」
+        ratio:
+          type: number
+          format: double
+
+    AiLabel:
+      type: object
+      properties:
+        name:
+          type: string
+        score:
+          type: number
+          format: double
+
+    AiSensitive:
+      type: object
+      properties:
+        has_face:
+          type: boolean
+        has_id_card:
+          type: boolean
+        boxes:
+          type: array
+          items:
+            type: object
+            properties:
+              type: {type: string, enum: [face, id_card]}
+              x: {type: integer}
+              y: {type: integer}
+              w: {type: integer}
+              h: {type: integer}
+              score: {type: number, format: double}
 
     ClaimCreateRequest:
       type: object
@@ -1527,6 +1653,44 @@ components:
           type: array
           items:
             type: string
+
+    ApiResponseVisualMatchList:
+      type: object
+      required: [code, message, data, traceId]
+      properties:
+        code:
+          type: integer
+          examples: [0]
+        message:
+          type: string
+          examples: [ok]
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/VisualMatch"
+        traceId:
+          type: string
+
+    VisualMatch:
+      type: object
+      required: [publicId, title, status, score]
+      properties:
+        publicId:
+          type: string
+          examples: [LF-20261112-2TL9]
+        title:
+          type: string
+        status:
+          type: string
+        coverUrl:
+          type: [string, "null"]
+          description: 候选帖封面图地址
+        score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: 图片向量的余弦相似度
 
     ApiResponseCategoryList:
       type: object

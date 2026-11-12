@@ -22,6 +22,7 @@ const locations = ref<CampusLocation[]>([])
 const optionsLoaded = ref(false)
 const submitting = ref(false)
 const error = ref('')
+const aiHint = ref('')
 const images = ref<UploadedFile[]>([])
 
 const form = reactive({
@@ -64,6 +65,38 @@ function resetForm(): void {
   form.eventTime = new Date()
   images.value = []
   error.value = ''
+  aiHint.value = ''
+}
+
+/**
+ * 图片识别结果只用于「填空」：用户已经写过的字段一律不覆盖，
+ * 这样先写字后传图的顺序也能保持用户输入优先。
+ */
+function onImageAnalyzed(file: UploadedFile): void {
+  const ai = file.ai
+  if (!ai || ai.status !== 'DONE') {
+    return
+  }
+  const filled: string[] = []
+  if (!form.title.trim() && ai.title) {
+    form.title = ai.title
+    filled.push('标题')
+  }
+  if (!form.description.trim() && ai.description) {
+    form.description = ai.description
+    filled.push('描述')
+  }
+  if (!form.categoryId && ai.categoryId) {
+    form.categoryId = ai.categoryId
+    filled.push('分类')
+  }
+  if (!form.color.trim() && ai.colors.length > 0) {
+    form.color = ai.colors[0].name
+    filled.push('颜色')
+  }
+  aiHint.value = filled.length > 0
+    ? `已根据图片自动填写${filled.join('、')}，可以再改`
+    : '图片特征已提取，可继续补充细节'
 }
 
 function validate(): string {
@@ -205,7 +238,14 @@ watch(
 
       <div class="form-field">
         <span>图片（选填，最多 6 张）</span>
-        <ImageUploader v-model="images" :max="6" hint="拍一张清晰的照片，更容易被认领" />
+        <ImageUploader
+          v-model="images"
+          :max="6"
+          :kind="form.type"
+          hint="拍一张清晰的照片，更容易被认领"
+          @analyzed="onImageAnalyzed"
+        />
+        <p v-if="aiHint" class="form-hint">{{ aiHint }}</p>
       </div>
 
       <div class="publish-row">

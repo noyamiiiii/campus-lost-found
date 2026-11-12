@@ -205,6 +205,14 @@ public class PostService {
             image.setWidth(file.getWidth());
             image.setHeight(file.getHeight());
             image.setIsPrimary(index == 0);
+            // 图片理解结果在上传时已经算过，这里只是复制一份挂到帖子上，
+            // 后续做以图搜图（AI-05）直接用 item_image.embedding。
+            image.setAiLabels(file.getAiLabels());
+            image.setSensitiveRegions(file.getAiSensitive());
+            image.setEmbedding(file.getEmbedding());
+            image.setEmbeddingModel(file.getEmbeddingModel());
+            image.setEmbeddingVersion(file.getEmbeddingVersion());
+            image.setEmbeddingCreatedAt(file.getEmbeddingCreatedAt());
             itemImageMapper.insert(image);
         }
     }

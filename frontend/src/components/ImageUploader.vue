@@ -10,11 +10,16 @@ const props = withDefaults(
     max?: number
     hint?: string
     single?: boolean
+    kind?: string
   }>(),
-  { max: 6, hint: '支持 JPG / PNG / WebP，单张不超过 5MB', single: false },
+  { max: 6, hint: '支持 JPG / PNG / WebP，单张不超过 5MB', single: false, kind: '' },
 )
 
-const emit = defineEmits<{ 'update:modelValue': [value: UploadedFile[]] }>()
+const emit = defineEmits<{
+  'update:modelValue': [value: UploadedFile[]]
+  /** 单张上传完成，父组件据此做「智能填写」 */
+  analyzed: [file: UploadedFile]
+}>()
 
 const inputRef = ref<HTMLInputElement | null>(null)
 const uploading = ref(0)
@@ -50,8 +55,9 @@ async function onChange(event: Event): Promise<void> {
     }
     uploading.value += 1
     try {
-      const uploaded = await uploadImage(file)
+      const uploaded = await uploadImage(file, { kind: props.kind })
       next.push(uploaded)
+      emit('analyzed', uploaded)
       if (props.single) {
         break
       }

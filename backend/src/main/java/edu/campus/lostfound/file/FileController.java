@@ -26,9 +26,11 @@ public class FileController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<FileView> upload(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "kind", required = false) String kind,
+            @RequestParam(value = "location", required = false) String location,
             Authentication authentication
     ) {
         AuthenticatedUser user = (AuthenticatedUser) authentication.getPrincipal();
-        return ApiResponse.ok(fileService.upload(user.userId(), file));
+        return ApiResponse.ok(fileService.upload(user.userId(), file, kind, location));
     }
 }

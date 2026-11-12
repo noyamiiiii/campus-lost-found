@@ -1,5 +1,47 @@
 # 测试与验收记录
 
+## 2026-11-12 图片理解与以图搜图
+
+把需求规格说明书里 AI-01～AI-07 落到了代码里：上传图片时就做分类、主色、敏感内容、描述与标题、向量，
+发帖表单自动填好，详情页再按图片向量找外观相似的帖子。
+
+### 新增接口
+
+| 接口 | 说明 |
+| --- | --- |
+| `POST /analyze`（ai-service） | multipart 上传图片 + kind/location，返回 category/labels/colors/sensitive/description/title/embedding |
+| `POST /embed/image` | 单张图片的 1000 维向量 |
+| `POST /describe` | 由分类/颜色/地点拼描述与标题 |
+| `POST /similar/vectors` | 给一组带向量的候选排序 |
+| `POST /embed/text` | 文本向量 |
+| `POST /api/v1/files`（后端） | 增加 `kind`、`location` 表单字段；响应新增 `ai` 对象 |
+| `GET /api/v1/posts/{publicId}/similar-images` | 以图搜图，余弦相似度 ≥ 0.55，最多 N 条 |
+
+### 实现要点
+
+- 模型：`mobilenetv2-7.onnx`（分类 + 图片向量，1000 类）、`face_detection_yunet_2023mar.onnx`（人脸/证件区域），
+  全部本地 CPU 推理，没有外部大模型；模型文件随 `ai-service/models` 提交（约 15 MB）。
+- 上传链路：`FileService.upload` 先落盘与写 `file_object`，再同步调 AI；超时（默认 4 s）或报错时
+  记录 `ai_status=FAILED` 并照常返回，**不阻断上传**。
+- 向量：4000 字节 = 1000 维 float32，写 `file_object.embedding`，发帖时复制到 `item_image.embedding`。
+- 前端：`ImageUploader` 上传后抛 `analyzed` 事件，`PublishDialog` 只在字段为空时填标题/描述/分类/颜色，
+  并提示「已根据图片自动填写」；详情抽屉多一块「外观相似」。
+
+### 验证结果
+
+- ai-service：`pytest` 23 passed（新增 `test_vision.py` 覆盖分类、颜色、敏感区域、描述与向量）。
+- 后端：`mvn test` 26 passed（File 4、Post 8、Claim 2、Auth 7、Admin 3、Health 2）。
+- 前端：`vue-tsc --noEmit` 无错。
+- 手工链路：`POST /analyze` 307 ms 返回完整结果；经后端上传后 `file_object.ai_status=DONE`、
+  `embedding` 4000 字节；发帖后 `GET /posts/{id}/similar-images` 命中同一张图另发的帖子 `score=1.0`；
+  发布弹窗选图后标题自动填成「捡到白色书籍」、分类「书籍」、颜色「白色」。
+
+### 已知限制
+
+- 分类来自 ImageNet 1000 类，校园小物件（钥匙、校园卡）识别率一般，因此描述里只把标签当「参考」，
+  分类仍让用户确认；向量检索是内存暴力比对（候选上限 800 条），帖子量再大要换向量索引。
+- 人脸/证件只做框选提示，不做打码；素材上传前仍由用户自行遮挡。
+
 ## W1 环境验收
 
 验收日期：2026-10-30

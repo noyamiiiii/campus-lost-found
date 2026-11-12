@@ -3,6 +3,7 @@ package edu.campus.lostfound.file;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @TableName("file_object")
@@ -22,6 +23,21 @@ public class FileObjectEntity {
     private Integer height;
     private String status;
     private LocalDateTime expiresAt;
+
+    private String aiStatus;
+    private Integer aiCategoryId;
+    private BigDecimal aiConfidence;
+    private String aiLabels;
+    private String aiColors;
+    private String aiSensitive;
+    private String aiDescription;
+    private String aiTitle;
+    private String aiModel;
+    private LocalDateTime aiAnalyzedAt;
+    private byte[] embedding;
+    private String embeddingModel;
+    private String embeddingVersion;
+    private LocalDateTime embeddingCreatedAt;
 
     public Long getId() {
         return id;
@@ -125,5 +141,117 @@ public class FileObjectEntity {
 
     public void setExpiresAt(LocalDateTime expiresAt) {
         this.expiresAt = expiresAt;
+    }
+
+    public String getAiStatus() {
+        return aiStatus;
+    }
+
+    public void setAiStatus(String aiStatus) {
+        this.aiStatus = aiStatus;
+    }
+
+    public Integer getAiCategoryId() {
+        return aiCategoryId;
+    }
+
+    public void setAiCategoryId(Integer aiCategoryId) {
+        this.aiCategoryId = aiCategoryId;
+    }
+
+    public BigDecimal getAiConfidence() {
+        return aiConfidence;
+    }
+
+    public void setAiConfidence(BigDecimal aiConfidence) {
+        this.aiConfidence = aiConfidence;
+    }
+
+    public String getAiLabels() {
+        return aiLabels;
+    }
+
+    public void setAiLabels(String aiLabels) {
+        this.aiLabels = aiLabels;
+    }
+
+    public String getAiColors() {
+        return aiColors;
+    }
+
+    public void setAiColors(String aiColors) {
+        this.aiColors = aiColors;
+    }
+
+    public String getAiSensitive() {
+        return aiSensitive;
+    }
+
+    public void setAiSensitive(String aiSensitive) {
+        this.aiSensitive = aiSensitive;
+    }
+
+    public String getAiDescription() {
+        return aiDescription;
+    }
+
+    public void setAiDescription(String aiDescription) {
+        this.aiDescription = aiDescription;
+    }
+
+    public String getAiTitle() {
+        return aiTitle;
+    }
+
+    public void setAiTitle(String aiTitle) {
+        this.aiTitle = aiTitle;
+    }
+
+    public String getAiModel() {
+        return aiModel;
+    }
+
+    public void setAiModel(String aiModel) {
+        this.aiModel = aiModel;
+    }
+
+    public LocalDateTime getAiAnalyzedAt() {
+        return aiAnalyzedAt;
+    }
+
+    public void setAiAnalyzedAt(LocalDateTime aiAnalyzedAt) {
+        this.aiAnalyzedAt = aiAnalyzedAt;
+    }
+
+    public byte[] getEmbedding() {
+        return embedding;
+    }
+
+    public void setEmbedding(byte[] embedding) {
+        this.embedding = embedding;
+    }
+
+    public String getEmbeddingModel() {
+        return embeddingModel;
+    }
+
+    public void setEmbeddingModel(String embeddingModel) {
+        this.embeddingModel = embeddingModel;
+    }
+
+    public String getEmbeddingVersion() {
+        return embeddingVersion;
+    }
+
+    public void setEmbeddingVersion(String embeddingVersion) {
+        this.embeddingVersion = embeddingVersion;
+    }
+
+    public LocalDateTime getEmbeddingCreatedAt() {
+        return embeddingCreatedAt;
+    }
+
+    public void setEmbeddingCreatedAt(LocalDateTime embeddingCreatedAt) {
+        this.embeddingCreatedAt = embeddingCreatedAt;
     }
 }

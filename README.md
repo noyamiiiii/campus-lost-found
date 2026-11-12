@@ -1,6 +1,6 @@
 # 校园失物招领平台
 
-校园内的失物招领与寻物协作平台。当前进度：**系统设计收尾、系统开发启动**。需求分析已完成，三端工程骨架已跑通，分类与公开帖子查询链路、验证码注册/登录与个人资料链路已经贯通前后端。
+校园内的失物招领与寻物协作平台。当前进度：**核心链路已贯通**。发布（含多图）、候选匹配、认领闭环、站内通知、管理后台，以及图片理解（分类/主色/敏感内容/自动描述）与以图搜图都已跑通三端。
 
 三个可独立启动的服务：
 
@@ -118,17 +118,27 @@ python -m uvicorn app.main:app --reload --port 8000
 
 验证：<http://localhost:8000/health>
 
-它不只是一个健康检查：提供三条接口，且被后端真实调用。
+它不只是一个健康检查：提供图片理解与文本相似两类能力，且都被后端真实调用。
 
 | 接口 | 用途 | 谁在调用 |
 | --- | --- | --- |
+| `POST /analyze` | 图片理解：分类、主色、敏感内容、描述与标题、图片向量 | 后端 `AiVisionClient` → 上传后写入 `file_object` |
+| `POST /embed/image` | 单张图片的向量 | 预留给发布后的异步重算 |
+| `POST /describe` | 由分类/颜色/地点拼描述与标题 | 与 `/analyze` 同源，可单独调用 |
 | `POST /similar` | 一段文本对一组候选打分（0~1）| 后端 `AiTextClient` → 帖子详情「可能的匹配」 |
+| `POST /similar/vectors` | 一组向量里找最相似的 | 以图搜图的评分口径参考 |
+| `POST /embed/text` | 文本向量 | 预留 |
 | `POST /similar/pair` | 两条文本的相似度 | 留给后续「重复发帖合并」 |
 | `POST /tags` | 关键词抽取 | 留给发布表单的标签联想 |
 
 后端通过 `AI_BASE_URL`（默认 `http://127.0.0.1:8000`）、`AI_TIMEOUT_MS`（默认 800）、
-`AI_ENABLED` 控制；**AI 服务没启动也不影响主流程**——匹配会退回本地中文二元组打分，
-只是少了「语义相似 xx%」这条理由。首页服务状态卡里的「AI 服务」探的就是 `/ai/health`。
+`AI_VISION_TIMEOUT_MS`（默认 4000）、`AI_ENABLED` 控制；**AI 服务没启动也不影响主流程**——
+匹配退回本地中文二元组打分，上传仍成功、只是 `ai.status` 记为 `FAILED`。首页服务状态卡里的
+「AI 服务」探的就是 `/ai/health`。
+
+模型文件在 `ai-service/models`（不入库，`python scripts/fetch_models.py` 下载约 14 MB）：
+`mobilenetv2-7.onnx` 做分类与图片向量，`face_detection_yunet_2023mar.onnx` 做人脸/证件区域检测，
+分类只在本地 CPU 推理，没有外部大模型调用。
 
 ### 4. 开发依赖（可选）
 
@@ -164,9 +174,10 @@ docker compose -f deploy\docker-compose.dev.yml ps
 | `GET /api/v1/posts` | 公开帖子游标分页、类型/分类/关键词筛选 |
 | `GET /api/v1/posts/{publicId}` | 公开帖子详情 |
 | `GET /api/v1/posts/{publicId}/matches` | 候选匹配（相反类型、按类别/地点/描述重合打分，最多 5 条） |
+| `GET /api/v1/posts/{publicId}/similar-images` | 以图搜图：按封面图向量找外观相似的帖子 |
 | `POST /api/v1/posts` | 发布寻物/招领（需 Bearer 令牌），可带 `imageIds` 最多 6 张 |
 | `GET /api/v1/posts/mine` | 自己发布的帖子（需 Bearer 令牌） |
-| `POST /api/v1/files` | 上传图片（multipart 字段 `file`，≤5 MB，JPEG/PNG/GIF/WebP） |
+| `POST /api/v1/files` | 上传图片（multipart 字段 `file`，可选 `kind`/`location`，≤5 MB），返回 `ai` 识别结果 |
 | `GET /files/**` | 本地存储模式下读取已上传图片 |
 | `POST /api/v1/posts/{publicId}/claims` | 发起认领（归属说明必填，可附佐证图） |
 | `GET /api/v1/claims/mine` | 我发起的认领 |

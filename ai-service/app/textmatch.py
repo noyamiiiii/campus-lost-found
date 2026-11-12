@@ -104,3 +104,39 @@ def keywords(text: str, limit: int = 5) -> list[str]:
     """高频词元，用于给记录打标签或做筛选提示。"""
     counter = Counter(tokenize(text))
     return [word for word, _ in counter.most_common(limit)]
+
+
+EMBEDDING_DIM = 256
+
+
+def embed(text: str, dim: int = EMBEDDING_DIM) -> list[float]:
+    """把文本压成定长向量（特征哈希），L2 归一化，可直接做余弦检索。
+
+    做法是把 tokenize 出来的词元用 md5 哈希到 dim 个桶里累加频次，再开方压一
+    下高频词。它没有语义泛化能力（“雨伞”和“伞”仍然是两个词元），但零模型、
+    零依赖、结果稳定，足够支撑「相似检索」这条链路的接口与阈值联调；换成句
+    向量模型时只需要保持返回同样长度的归一化向量。
+    """
+    import hashlib
+    import math
+
+    vector = [0.0] * dim
+    counter = Counter(tokenize(text))
+    if not counter:
+        return vector
+    for token, count in counter.items():
+        digest = hashlib.md5(token.encode("utf-8")).digest()
+        bucket = int.from_bytes(digest[:4], "big") % dim
+        sign = 1.0 if digest[4] % 2 == 0 else -1.0
+        vector[bucket] += sign * (1.0 + math.log(count))
+    norm = math.sqrt(sum(value * value for value in vector))
+    if norm <= 0:
+        return vector
+    return [round(value / norm, 5) for value in vector]
+
+
+def cosine(left: list[float], right: list[float]) -> float:
+    """两个已归一化向量的余弦相似度。"""
+    if not left or not right or len(left) != len(right):
+        return 0.0
+    return max(0.0, min(1.0, sum(a * b for a, b in zip(left, right))))

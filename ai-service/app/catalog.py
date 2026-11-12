@@ -1,0 +1,221 @@
+"""图片分析用的字典：ImageNet 标签到平台分类的映射、主色的中文名。
+
+平台分类 id 与 ``category`` 表一致（1 校园卡 … 20 其他），这里只放图片模型能
+可靠区分的若干类，识别不出时统一落 20（其他），由用户自己改。
+"""
+
+# 分类 id → 名称
+CATEGORY_LABELS = {
+    1: "校园卡",
+    2: "身份证件",
+    3: "钥匙",
+    4: "手机",
+    5: "耳机",
+    6: "充电宝",
+    7: "电脑",
+    8: "U 盘",
+    9: "书籍",
+    10: "水杯",
+    11: "雨伞",
+    12: "书包",
+    13: "钱包",
+    14: "眼镜",
+    15: "手表",
+    16: "衣物",
+    17: "球类",
+    18: "化妆品",
+    19: "自行车配件",
+    20: "其他",
+}
+
+# ImageNet 标签关键词 → 平台分类 id。顺序即优先级：先命中的先算。
+# 关键词统一小写，匹配时对 ImageNet 标签做小写包含判断。
+IMAGENET_RULES: list[tuple[tuple[str, ...], int]] = [
+    (("umbrella",), 11),
+    (("backpack", "knapsack", "rucksack", "haversack"), 12),
+    (("wallet", "billfold", "notecase", "purse"), 13),
+    (("cellular telephone", "cellphone", "cellular phone", "dial telephone"), 4),
+    (("notebook computer", "laptop", "desktop computer", "hand-held computer"), 7),
+    (("headphone", "earphone", "loudspeaker", "microphone", "stereo"), 5),
+    (("water bottle", "pop bottle", "beer bottle", "flask", "water jug", "pitcher"), 10),
+    (("book jacket", "comic book", "bookshop", "binder", "menu"), 9),
+    (("sunglass", "sunglasses", "spectacles", "eyeglass"), 14),
+    (("wrist watch", "digital watch", "stopwatch", "analog clock"), 15),
+    (
+        (
+            "jersey",
+            "t-shirt",
+            "sweatshirt",
+            "cardigan",
+            "suit",
+            "jean",
+            "skirt",
+            "coat",
+            "raincoat",
+            "scarf",
+        ),
+        16,
+    ),
+    (
+        (
+            "basketball",
+            "volleyball",
+            "soccer ball",
+            "tennis ball",
+            "ping-pong ball",
+            "baseball",
+        ),
+        17,
+    ),
+    (("padlock", "combination lock", "safety pin", "key"), 3),
+    (("mountain bike", "bicycle", "tricycle", "unicycle"), 19),
+    (
+        (
+            "lipstick",
+            "lotion",
+            "perfume",
+            "face powder",
+            "hair spray",
+            "sunscreen",
+            "cream",
+        ),
+        18,
+    ),
+    (("hard disc", "cd player", "usb", "modem", "mouse", "keyboard", "monitor"), 8),
+    (("power bank", "charger", "adapter", "electric switch"), 6),
+]
+
+# 分类 id → 建议的英文标签集合（用于零样本兜底与描述生成）
+CATEGORY_HINTS = {
+    1: "student id card",
+    2: "identity card",
+    3: "key",
+    4: "smartphone",
+    5: "earphone",
+    6: "power bank",
+    7: "laptop",
+    8: "usb flash drive",
+    9: "book",
+    10: "water bottle",
+    11: "umbrella",
+    12: "backpack",
+    13: "wallet",
+    14: "glasses",
+    15: "watch",
+    16: "clothes",
+    17: "ball",
+    18: "cosmetics",
+    19: "bicycle part",
+    20: "object",
+}
+
+# ImageNet 常见标签 → 中文，用于描述文案里给人看的标签名。
+# 只覆盖校园场景容易出现的类别，其余保留英文原名。
+LABEL_ZH = {
+    "book jacket": "书籍",
+    "notebook": "笔记本",
+    "notebook computer": "笔记本电脑",
+    "laptop": "笔记本电脑",
+    "cellular telephone": "手机",
+    "smartphone": "手机",
+    "ipod": "播放器",
+    "headphone": "耳机",
+    "earphone": "耳机",
+    "wallet": "钱包",
+    "purse": "钱包",
+    "backpack": "背包",
+    "knapsack": "双肩包",
+    "umbrella": "雨伞",
+    "water bottle": "水杯",
+    "bottle": "水杯",
+    "key": "钥匙",
+    "padlock": "锁",
+    "wrist watch": "手表",
+    "digital watch": "手表",
+    "sunglass": "太阳镜",
+    "sunglasses": "太阳镜",
+    "spectacles": "眼镜",
+    "glasses": "眼镜",
+    "library": "书架",
+    "binder": "文件夹",
+    "pencil case": "文具盒",
+    "ballpoint": "圆珠笔",
+    "pencil sharpener": "卷笔刀",
+    "crayon": "蜡笔",
+    "basketball": "篮球",
+    "volleyball": "排球",
+    "soccer ball": "足球",
+    "racket": "球拍",
+    "bicycle": "自行车",
+    "moped": "电动车",
+    "jersey": "球衣",
+    "sweatshirt": "卫衣",
+    "coat": "外套",
+    "jacket": "夹克",
+    "jean": "牛仔裤",
+    "sock": "袜子",
+    "sneaker": "运动鞋",
+    "shoe": "鞋",
+    "hat": "帽子",
+    "cap": "帽子",
+    "scarf": "围巾",
+    "glove": "手套",
+    "towel": "毛巾",
+    "toothbrush": "牙刷",
+    "lipstick": "口红",
+    "lotion": "护肤品",
+    "perfume": "香水",
+    "hair spray": "定型喷雾",
+    "mascara": "睫毛膏",
+    "powder compact": "粉饼",
+    "computer keyboard": "键盘",
+    "computer mouse": "鼠标",
+    "monitor": "显示器",
+    "charger": "充电器",
+    "power bank": "充电宝",
+    "usb": "U 盘",
+    "hard disc": "移动硬盘",
+    "web site": "网页/屏幕内容",
+    "menu": "菜单",
+    "comic book": "漫画",
+    "paper towel": "纸巾",
+    "envelope": "信封",
+    "carton": "纸箱",
+    "plastic bag": "塑料袋",
+    "shopping basket": "购物篮",
+    "basket": "篮子",
+    "wooden spoon": "木勺",
+    "cup": "杯子",
+    "mug": "马克杯",
+    "coffee mug": "马克杯",
+    "pitcher": "水壶",
+    "kettle": "水壶",
+    "teapot": "茶壶",
+    "plate": "盘子",
+    "bowl": "碗",
+    "chopsticks": "筷子",
+    "fork": "叉子",
+    "spoon": "勺子",
+}
+
+
+def label_zh(name: str | None) -> str:
+    """把 ImageNet 英文标签翻成中文；没有对应词条时保留原名。"""
+    raw = (name or "").strip()
+    if not raw:
+        return ""
+    return LABEL_ZH.get(raw.lower(), raw)
+
+
+# HSV 色相区间 → 中文颜色名；先按饱和度/亮度判黑、灰、白，再按色相细分。
+# 每项 (下界, 上界, 名称)，色相 0-180（OpenCV 口径）。
+HUE_NAMES: list[tuple[int, int, str]] = [
+    (0, 10, "红色"),
+    (10, 22, "橙色"),
+    (22, 34, "黄色"),
+    (34, 80, "绿色"),
+    (80, 95, "青色"),
+    (95, 130, "蓝色"),
+    (130, 160, "紫色"),
+    (160, 180, "粉红色"),
+]

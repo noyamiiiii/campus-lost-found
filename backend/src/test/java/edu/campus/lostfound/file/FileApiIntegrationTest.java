@@ -61,6 +61,10 @@ class FileApiIntegrationTest {
                 .andExpect(jsonPath("$.data.mime").value("image/png"))
                 .andExpect(jsonPath("$.data.width").value(1))
                 .andExpect(jsonPath("$.data.height").value(1))
+                // AI 结果随上传一起返回：有 ai-service 时是 DONE，没有时是 FAILED/SKIPPED，
+                // 但字段一定存在，前端据此决定要不要做「智能填写」。
+                .andExpect(jsonPath("$.data.ai").exists())
+                .andExpect(jsonPath("$.data.ai.status").isNotEmpty())
                 .andReturn();
 
         String url = JsonPath.read(uploaded.getResponse().getContentAsString(), "$.data.url");

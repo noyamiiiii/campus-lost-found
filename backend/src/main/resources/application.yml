@@ -71,6 +71,8 @@ app:
     enabled: ${AI_ENABLED:true}
     base-url: ${AI_BASE_URL:http://127.0.0.1:8000}
     timeout-ms: ${AI_TIMEOUT_MS:800}
+    # 图片理解是一次 CPU 推理，比语义打分慢，单给一个更宽松的超时
+    vision-timeout-ms: ${AI_VISION_TIMEOUT_MS:4000}
 
 logging:
   level:

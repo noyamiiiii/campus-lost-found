@@ -10,6 +10,8 @@ def test_health_reports_service_metadata() -> None:
     body = response.json()
     assert body["status"] == "ok"
     assert body["service"] == "campus-lost-found-ai"
-    assert body["version"] == "0.2.0"
-    assert body["model_loaded"] is False
-
+    assert body["version"] == "0.3.0"
+    # 模型是后台线程加载的，健康检查只保证字段存在、类型正确
+    assert isinstance(body["model_loaded"], bool)
+    assert isinstance(body["models"], dict)
+    assert set(body["models"]) == {"classifier", "face", "labels"}

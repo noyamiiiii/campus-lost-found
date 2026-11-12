@@ -41,3 +41,11 @@ coverage/
 .pytest_cache/
 htmlcov/
 
+# --- AI æ¨¡å‹æ–‡ä»¶ï¼ˆå¯ç”¨ python scripts/fetch_models.py é‡æ–°ä¸‹è½½ï¼‰---
+ai-service/models/
+*.onnx
+
+# --- IDEA ±¾µØÔËĞĞÅäÖÃ ---
+backend/.run/
+.idea/
+*.iml

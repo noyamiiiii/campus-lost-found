@@ -75,6 +75,23 @@ export async function fetchPostMatches(publicId: string): Promise<PostMatch[]> {
   return unwrap(data)
 }
 
+/** 以图搜图的结果：score 是图片向量的余弦相似度。 */
+export interface VisualMatch {
+  publicId: string
+  title: string
+  status: string
+  coverUrl: string | null
+  score: number
+}
+
+export async function fetchSimilarImages(publicId: string, limit = 5): Promise<VisualMatch[]> {
+  const { data } = await http.get<ApiEnvelope<VisualMatch[]>>(
+    `/api/v1/posts/${encodeURIComponent(publicId)}/similar-images`,
+    { params: { limit } },
+  )
+  return unwrap(data)
+}
+
 export async function fetchLocations(): Promise<CampusLocation[]> {
   const { data } = await http.get<ApiEnvelope<{ items: CampusLocation[] }>>('/api/v1/locations')
   return unwrap(data).items

@@ -1,5 +1,7 @@
 package edu.campus.lostfound.post;
 
+import java.time.LocalDateTime;
+
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
@@ -14,6 +16,13 @@ public class ItemImageEntity {
     private Integer width;
     private Integer height;
     private Boolean isPrimary;
+    private String aiLabels;
+    private String sensitiveRegions;
+    private String ocrText;
+    private byte[] embedding;
+    private String embeddingModel;
+    private String embeddingVersion;
+    private LocalDateTime embeddingCreatedAt;
 
     public Long getId() {
         return id;
@@ -61,5 +70,61 @@ public class ItemImageEntity {
 
     public void setIsPrimary(Boolean isPrimary) {
         this.isPrimary = isPrimary;
+    }
+
+    public String getAiLabels() {
+        return aiLabels;
+    }
+
+    public void setAiLabels(String aiLabels) {
+        this.aiLabels = aiLabels;
+    }
+
+    public String getSensitiveRegions() {
+        return sensitiveRegions;
+    }
+
+    public void setSensitiveRegions(String sensitiveRegions) {
+        this.sensitiveRegions = sensitiveRegions;
+    }
+
+    public String getOcrText() {
+        return ocrText;
+    }
+
+    public void setOcrText(String ocrText) {
+        this.ocrText = ocrText;
+    }
+
+    public byte[] getEmbedding() {
+        return embedding;
+    }
+
+    public void setEmbedding(byte[] embedding) {
+        this.embedding = embedding;
+    }
+
+    public String getEmbeddingModel() {
+        return embeddingModel;
+    }
+
+    public void setEmbeddingModel(String embeddingModel) {
+        this.embeddingModel = embeddingModel;
+    }
+
+    public String getEmbeddingVersion() {
+        return embeddingVersion;
+    }
+
+    public void setEmbeddingVersion(String embeddingVersion) {
+        this.embeddingVersion = embeddingVersion;
+    }
+
+    public LocalDateTime getEmbeddingCreatedAt() {
+        return embeddingCreatedAt;
+    }
+
+    public void setEmbeddingCreatedAt(LocalDateTime embeddingCreatedAt) {
+        this.embeddingCreatedAt = embeddingCreatedAt;
     }
 }

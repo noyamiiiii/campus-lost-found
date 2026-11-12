@@ -220,4 +220,17 @@ class PostApiIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(40400));
     }
+
+    @Test
+    void visualSearchReturnsEmptyListForPostWithoutImageVector() throws Exception {
+        // 种子帖没有图片，向量检索应返回空数组而不是报错；帖子不存在才 404。
+        mockMvc.perform(get("/api/v1/posts/{publicId}/similar-images", "LF-2026-1031-01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data").isArray());
+
+        mockMvc.perform(get("/api/v1/posts/{publicId}/similar-images", "LF-NOT-EXIST"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(40400));
+    }
 }

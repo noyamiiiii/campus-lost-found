@@ -6,7 +6,8 @@ import { AlertCircle, ChevronDown, LoaderCircle, Search } from 'lucide-vue-next'
 import ItemCard from '@/components/ItemCard.vue'
 import ClaimDialog from '@/components/ClaimDialog.vue'
 import ServiceStatusPanel from '@/components/ServiceStatusPanel.vue'
-import { fetchCategories, fetchPostDetail, fetchPostMatches, fetchPosts, toRequestMessage, type Category, type PostMatch } from '@/api/posts'
+import { fetchCategories, fetchPostDetail, fetchPostMatches,
+  fetchSimilarImages, fetchPosts, toRequestMessage, type Category, type PostMatch, type VisualMatch } from '@/api/posts'
 import { useAuthStore } from '@/stores/auth'
 import { useFeedStore } from '@/stores/feed'
 import {
@@ -92,6 +93,8 @@ const detailImages = computed(() => {
 
 const matches = ref<PostMatch[]>([])
 const matchesLoading = ref(false)
+const visualMatches = ref<VisualMatch[]>([])
+const visualLoading = ref(false)
 
 // 已认领/已归还的记录不再允许重复发起认领
 const canClaim = computed(() => {
@@ -211,6 +214,8 @@ async function loadDetail(publicId: string): Promise<void> {
   detailError.value = ''
   matches.value = []
   matchesLoading.value = true
+  visualMatches.value = []
+  visualLoading.value = true
   try {
     const detail = await fetchPostDetail(publicId)
     if (request === detailRequest) {
@@ -239,6 +244,22 @@ async function loadDetail(publicId: string): Promise<void> {
   } finally {
     if (request === detailRequest) {
       matchesLoading.value = false
+    }
+  }
+
+  try {
+    // 以图搜图同样静默降级：没有图片或服务异常时列表为空。
+    const visual = await fetchSimilarImages(publicId)
+    if (request === detailRequest) {
+      visualMatches.value = visual
+    }
+  } catch {
+    if (request === detailRequest) {
+      visualMatches.value = []
+    }
+  } finally {
+    if (request === detailRequest) {
+      visualLoading.value = false
     }
   }
 }
@@ -428,6 +449,22 @@ onBeforeUnmount(() => {
                 <span class="detail__match-score">相似度 {{ match.score }}</span>
               </div>
               <p class="detail__match-reasons">{{ match.reasons.join(' · ') }}</p>
+            </li>
+          </ul>
+        </div>
+
+        <div v-if="!visualLoading && visualMatches.length" class="detail__visual">
+          <div class="detail__matches-head">
+            <h3>外观相似</h3>
+            <el-tag size="small" type="info">图片比对</el-tag>
+          </div>
+          <ul class="detail__visual-list">
+            <li v-for="item in visualMatches" :key="item.publicId">
+              <img v-if="item.coverUrl" :src="item.coverUrl" :alt="item.title" loading="lazy" />
+              <div class="detail__visual-main">
+                <span class="detail__match-title">{{ item.title }}</span>
+                <span class="detail__match-score">相似度 {{ item.score.toFixed(2) }}</span>
+              </div>
             </li>
           </ul>
         </div>

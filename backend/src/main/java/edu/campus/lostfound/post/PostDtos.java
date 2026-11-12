@@ -69,6 +69,16 @@ public final class PostDtos {
     ) {
     }
 
+    /** 以图搜图命中项：score 是归一化向量的余弦相似度，0~1。 */
+    public record VisualMatch(
+            String publicId,
+            String title,
+            String status,
+            String coverUrl,
+            double score
+    ) {
+    }
+
     public record PostCreateRequest(
             @NotBlank(message = "请选择寻物或招领")
             String type,

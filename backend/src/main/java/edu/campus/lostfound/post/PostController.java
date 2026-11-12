@@ -7,6 +7,7 @@ import edu.campus.lostfound.post.PostDtos.PostDetail;
 import edu.campus.lostfound.post.PostDtos.PostMatch;
 import edu.campus.lostfound.post.PostDtos.PostPage;
 import edu.campus.lostfound.post.PostDtos.PostSummary;
+import edu.campus.lostfound.post.PostDtos.VisualMatch;
 import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
@@ -26,10 +27,16 @@ public class PostController {
 
     private final PostService postService;
     private final PostMatchService postMatchService;
+    private final PostImageSearchService postImageSearchService;
 
-    public PostController(PostService postService, PostMatchService postMatchService) {
+    public PostController(
+            PostService postService,
+            PostMatchService postMatchService,
+            PostImageSearchService postImageSearchService
+    ) {
         this.postService = postService;
         this.postMatchService = postMatchService;
+        this.postImageSearchService = postImageSearchService;
     }
 
     @GetMapping
@@ -51,6 +58,15 @@ public class PostController {
     @GetMapping("/{publicId}/matches")
     public ApiResponse<List<PostMatch>> matches(@PathVariable String publicId) {
         return ApiResponse.ok(postMatchService.findMatches(publicId));
+    }
+
+    /** 以图搜图（AI-05）：用这条帖子的主图向量找外观相似的帖子。 */
+    @GetMapping("/{publicId}/similar-images")
+    public ApiResponse<List<VisualMatch>> similarImages(
+            @PathVariable String publicId,
+            @RequestParam(defaultValue = "5") int limit
+    ) {
+        return ApiResponse.ok(postImageSearchService.searchByPublicId(publicId, limit));
     }
 
     @GetMapping("/mine")
