@@ -50,6 +50,14 @@ def test_dominant_color_bright_is_white() -> None:
     assert colors[0]["name"] == "白色"
 
 
+def test_dominant_color_ignores_white_background() -> None:
+    """白底图上的黑色物体应报黑色，而不是背景的白色。"""
+    image = np.full((240, 240, 3), 250, dtype=np.uint8)
+    image[60:180, 60:180] = (18, 18, 20)
+    colors = vision.dominant_colors(image)
+    assert colors[0]["name"] == "黑色", colors
+
+
 def test_detect_sensitive_on_plain_image() -> None:
     result = vision.detect_sensitive(_solid((180, 180, 180)))
     assert result["has_face"] is False

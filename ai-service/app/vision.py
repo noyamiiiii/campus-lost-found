@@ -184,13 +184,43 @@ def size_of(image: np.ndarray) -> tuple[int, int]:
 # --------------------------------------------------------------------------- 主色
 
 
+def _foreground_mask(small: np.ndarray) -> np.ndarray | None:
+    """猜出主体所在的像素。
+
+    商品图、教程截图大多是纯色（白/灰）背景，直接对整图统计主色会把背景算成
+    「白色」，黑色耳机就被说成白色耳机。这里用四条边上的像素中位数当背景色，
+    离背景色足够远的像素视为主体；主体太少时返回 None，让调用方退回整图统计。
+    """
+    height, width = small.shape[:2]
+    if height < 8 or width < 8:
+        return None
+
+    border = np.concatenate(
+        [
+            small[0:2].reshape(-1, 3),
+            small[-2:].reshape(-1, 3),
+            small[:, 0:2].reshape(-1, 3),
+            small[:, -2:].reshape(-1, 3),
+        ]
+    ).astype(np.float32)
+    background = np.median(border, axis=0)
+
+    diff = np.linalg.norm(small.astype(np.float32) - background, axis=2)
+    mask = diff > 28.0
+    if float(mask.mean()) < 0.08 or float(mask.mean()) > 0.95:
+        return None
+    return mask
+
+
 def dominant_colors(image: np.ndarray, k: int = 3) -> list[dict[str, Any]]:
     """K 均值取主色，返回 [{hex, name, ratio}]，按占比降序。
 
-    在 96x96 的缩略图上做，单张 20ms 内，足够稳。
+    在 96x96 的缩略图上做，单张 20ms 内，足够稳。统计前先剔除背景，
+    这样白底图上的黑色物品不会被背景色盖过去。
     """
     small = cv2.resize(image, (96, 96), interpolation=cv2.INTER_AREA)
-    pixels = small.reshape(-1, 3).astype(np.float32)
+    mask = _foreground_mask(small)
+    pixels = (small[mask] if mask is not None else small.reshape(-1, 3)).astype(np.float32)
     count = min(k, len(pixels))
     if count <= 0:
         return []
